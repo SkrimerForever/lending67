@@ -9,6 +9,7 @@ import { FlowArchitectCase } from "./FlowArchitectCase";
 import { HeroStory } from "./HeroStory";
 import { LoadingLine } from "./LoadingLine";
 import { getPerformanceProfile, type PerformanceProfile } from "./performance-profile";
+import { SecondCaseStub } from "./SecondCaseStub";
 import { createWalkScene } from "./walk/createWalkScene";
 import { getWalkFlightState } from "./walk/walkFlightState";
 
@@ -417,6 +418,8 @@ export function ButterflyExperience() {
   const caseTitleRef = useRef<HTMLHeadingElement>(null);
   const caseDescriptionRef = useRef<HTMLParagraphElement>(null);
   const caseMetaRef = useRef<HTMLSpanElement>(null);
+  const walkVeilRef = useRef<HTMLDivElement>(null);
+  const caseTwoRef = useRef<HTMLElement>(null);
   const uniformsRef = useRef<Uniforms | null>(null);
   const progressRef = useRef({ value: 0 });
   const flightRef = useRef({ value: 0 });
@@ -1629,6 +1632,13 @@ export function ButterflyExperience() {
       cameraTarget.y += (impulseDistance * 0.035 - screenDive * 0.075) * cameraCatch;
       camera.lookAt(cameraTarget);
       // From 1.98 the walk scene owns the camera pose.
+      if (walkVeilRef.current) {
+        walkVeilRef.current.style.opacity = String(walkState.whiteout * (1 - walkState.caseReveal));
+      }
+      if (caseTwoRef.current) {
+        caseTwoRef.current.style.opacity = String(walkState.caseReveal);
+        caseTwoRef.current.style.transform = `scale(${1.04 - walkState.caseReveal * 0.04})`;
+      }
       walkScene.update(walkState, sceneTime, camera);
       renderer.render(scene, camera);
     };
@@ -1691,6 +1701,8 @@ export function ButterflyExperience() {
           principleRefs={principleRefs}
           resolutionRef={resolutionRef}
         />
+
+        <SecondCaseStub veilRef={walkVeilRef} stubRef={caseTwoRef} />
 
         <LoadingLine progress={loadingProgress} complete={loadingComplete} />
       </div>
