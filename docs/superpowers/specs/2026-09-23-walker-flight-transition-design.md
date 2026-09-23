@@ -40,7 +40,7 @@ Extending the range must not stretch earlier scenes:
 
 Module: `src/components/butterfly/walk/WalkerFigure.ts`.
 
-- **Body:** 15 parts — head, neck, ribcage, pelvis, two upper arms, two forearms, two hands, two thighs, two shins, two feet. Each part is a capsule or ellipsoid with adult proportions for a height of ~1.8 m. Adjacent parts overlap so joints never tear.
+- **Body:** 16 parts — head, neck, ribcage, pelvis, two upper arms, two forearms, two hands, two thighs, two shins, two feet. Each part is a capsule or ellipsoid with adult proportions for a height of ~1.8 m. Adjacent parts overlap so joints never tear.
 - **Sampling:** points lie on part surfaces with a slight inward scatter, giving volume and a soft dusty edge like the Hero figures. Count by performance profile: HIGH 14 000, BALANCED 9 000, LOW 5 000.
 - **Attributes:** `aBone` (part id), `aLocal` (position relative to the part's joint), `aSeed`.
 - **Walk in the vertex shader:** forward kinematics from a single uniform `uStride` (walk phase, 1.0 = one full cycle of two steps). Hip and knee flexion follow a gait-like curve (knee flexes in swing, near-straight at heel strike), not a pure sine. Arms swing in counter-phase to the legs. Pelvis and shoulders counter-rotate slightly; the torso bobs ~3 cm per step. The root translates forward with the stride so feet do not skate.
