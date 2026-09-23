@@ -9,6 +9,8 @@ import { FlowArchitectCase } from "./FlowArchitectCase";
 import { HeroStory } from "./HeroStory";
 import { LoadingLine } from "./LoadingLine";
 import { getPerformanceProfile, type PerformanceProfile } from "./performance-profile";
+import { createWalkScene } from "./walk/createWalkScene";
+import { getWalkFlightState } from "./walk/walkFlightState";
 
 const FLOW_PROMPT = "Получить сообщение → обработать AI → отправить в Telegram";
 
@@ -464,7 +466,7 @@ export function ButterflyExperience() {
     const select = gsap.utils.selector(stage);
     const timelineClock = { value: 0 };
     const scrollTween = gsap.to(scrollRef.current, {
-      value: 1.98,
+      value: 2.6,
       ease: "none",
       scrollTrigger: {
         trigger: shell,
@@ -542,9 +544,10 @@ export function ButterflyExperience() {
           { opacity: 0, yPercent: -8, duration: 9, ease: "power2.inOut" },
           160,
         )
-        // Keep the original scene timings aligned after the dedicated
-        // post-columns flight range extended scrollRef from 1 to 1.18.
-        .to(timelineClock, { value: 1, duration: 165.6, ease: "none" }, 169);
+        // Keep the original scene timings aligned while scrollRef grows:
+        // the timeline total (169 + duration) scales with the scroll range
+        // (334.6 at 1.98 → 439.4 at 2.60 for the walker flight).
+        .to(timelineClock, { value: 1, duration: 270.4, ease: "none" }, 169);
     }, stage);
 
     return () => {
@@ -637,6 +640,9 @@ export function ButterflyExperience() {
     tunnelPoints.frustumCulled = false;
     tunnelPoints.renderOrder = 0;
     scene.add(tunnelPoints);
+
+    const walkScene = createWalkScene(performanceProfile, pixelRatio());
+    scene.add(walkScene.group);
 
     // Invisible body volume: it writes only to the depth buffer, so wing
     // particles disappear naturally when they pass behind the thorax.
@@ -753,6 +759,7 @@ export function ButterflyExperience() {
       renderer.setPixelRatio(nextPixelRatio);
       tunnelUniforms.uPixelRatio.value = nextPixelRatio;
       columnUniforms.uPixelRatio.value = nextPixelRatio;
+      walkScene.setPixelRatio(nextPixelRatio);
       if (uniformsRef.current) uniformsRef.current.uPixelRatio.value = nextPixelRatio;
       layoutColumns();
     };
@@ -1205,6 +1212,12 @@ export function ButterflyExperience() {
       const assembly = progressRef.current.value;
       const dissolveProgress = dissolveRef.current.value;
       const scrollTravel = reduceMotion.matches ? 0 : scrollRef.current.value;
+      // Reduced motion freezes the earlier world at 0, but the walk stage
+      // still needs the raw scroll to step through its three stable states.
+      const walkState = getWalkFlightState(scrollRef.current.value, {
+        reducedMotion: reduceMotion.matches,
+        narrow: camera.aspect < 0.9,
+      });
       const renderParticleWorld = scrollTravel < 1.22;
       group.visible = renderParticleWorld;
       tunnelPoints.visible = renderParticleWorld;
@@ -1446,7 +1459,9 @@ export function ButterflyExperience() {
       }
       if (caseGlowRef.current) {
         const glowIn = THREE.MathUtils.smoothstep(finalFlight, 0.24, 0.92);
-        caseGlowRef.current.style.opacity = String(glowIn * 0.72 * (1 - operatorTurn * 0.82));
+        caseGlowRef.current.style.opacity = String(
+          glowIn * 0.72 * (1 - operatorTurn * 0.82) * (1 - walkState.darknessDive),
+        );
         caseGlowRef.current.style.transform = `translate3d(${(1 - glowIn) * 12 + turnEase * 34}%, 0, 0) scale(${0.82 + glowIn * 0.18})`;
       }
       if (caseScreenRef.current) {
@@ -1576,7 +1591,8 @@ export function ButterflyExperience() {
         const turnZ = turnEase * -70;
         const turnYaw = -anticipation * 2.2 + turnEase * 88 + turnOvershoot;
         const turnRoll = Math.sin(operatorTurn * Math.PI) * 1.15;
-        caseWorldRef.current.style.transform = `perspective(1400px) rotateZ(${turnRoll}deg) rotateY(${turnYaw}deg) translate3d(${turnX}vw, ${turnY}vh, ${pullbackZ + turnZ}px)`;
+        caseWorldRef.current.style.transform = `perspective(1400px) translate3d(${-walkState.darknessDive * 24}vw, 0, 0) rotateZ(${turnRoll}deg) rotateY(${turnYaw}deg) translate3d(${turnX}vw, ${turnY}vh, ${pullbackZ + turnZ}px)`;
+        caseWorldRef.current.style.opacity = String(1 - walkState.darknessDive);
         caseWorldRef.current.classList.toggle("is-turning", operatorTurn > 0.002);
         if (caseSurfaceRef.current) {
           caseSurfaceRef.current.style.backgroundColor = `rgba(0, 0, 0, ${pullback})`;
@@ -1612,6 +1628,8 @@ export function ButterflyExperience() {
       const screenDive = THREE.MathUtils.smoothstep(finalFlight, 0.38, 1);
       cameraTarget.y += (impulseDistance * 0.035 - screenDive * 0.075) * cameraCatch;
       camera.lookAt(cameraTarget);
+      // From 1.98 the walk scene owns the camera pose.
+      walkScene.update(walkState, sceneTime, camera);
       renderer.render(scene, camera);
     };
     resize(); render();
@@ -1631,6 +1649,7 @@ export function ButterflyExperience() {
       trailSourceData = null;
       renderer.dispose(); renderer.domElement.remove();
       tunnelGeometry.dispose(); tunnelMaterial.dispose();
+      walkScene.dispose();
       torsoOccluderGeometry.dispose(); headOccluderGeometry.dispose(); occluderMaterial.dispose();
       uniformsRef.current = null;
     };
