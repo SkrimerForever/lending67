@@ -21,16 +21,16 @@ function sampleGround(count: number) {
   let attempts = 0;
   while (written < count && attempts < count * 12) {
     attempts += 1;
-    const x = (Math.random() * 2 - 1) * 7;
+    const x = (Math.random() * 2 - 1) * 2.8;
     const z = 14 - Math.random() * 62;
     const band = Math.pow(0.5 + 0.5 * Math.sin((x * 1.25 + Math.sin(z * 0.17) * 2.4 + z * 0.05) * 2.1), 3);
-    const edge = 1 - smoothstep(Math.abs(x), 4.5, 7);
+    const edge = 1 - smoothstep(Math.abs(x), 1.6, 2.8);
     if (Math.random() > (0.18 + 0.82 * band) * edge) continue;
-    // The walking path stays flat; the terrain rises into soft banks at the sides.
-    const hill = 0.28 * Math.sin(x * 0.55 + z * 0.13) + 0.16 * Math.sin(z * 0.31 - x * 0.8);
-    const sides = smoothstep(Math.abs(x), 0.7, 3.2);
+    // A flat, narrow path; the ground rises gently into low banks at the sides.
+    const hill = 0.12 * Math.sin(x * 0.9 + z * 0.13) + 0.07 * Math.sin(z * 0.31 - x * 1.2);
+    const sides = smoothstep(Math.abs(x), 0.5, 2.2);
     positions[written * 3] = x;
-    positions[written * 3 + 1] = hill * sides + 0.35 * smoothstep(Math.abs(x), 1.5, 6) - 0.01
+    positions[written * 3 + 1] = hill * sides + 0.15 * smoothstep(Math.abs(x), 1.0, 2.8) - 0.01
       + (Math.random() - 0.5) * 0.03;
     positions[written * 3 + 2] = z;
     seeds[written] = Math.random();
@@ -91,7 +91,10 @@ export function createWalkEnvironment(
         float distanceToCamera = -viewPosition.z;
         gl_PointSize = mix(0.8, 1.7, aSeed) * uPixelRatio * clamp(6.0 / max(distanceToCamera, 0.5), 0.35, 2.4);
         float shimmer = 0.82 + 0.18 * sin(uTime * 0.9 + aSeed * 31.0);
-        vAlpha = uReveal * mix(0.3, 0.78, aSeed) * shimmer * smoothstep(48.0, 18.0, distanceToCamera);
+        // The walking path itself reads slightly brighter than the verges.
+        float path = 1.0 + 0.6 * (1.0 - smoothstep(0.15, 0.45, abs(position.x)));
+        vAlpha = uReveal * mix(0.3, 0.78, aSeed) * shimmer * path
+          * (1.0 - smoothstep(18.0, 48.0, distanceToCamera));
       }
     `,
     fragmentShader: pointFragment,
@@ -135,7 +138,7 @@ export function createWalkEnvironment(
         gl_PointSize = mix(0.8, 1.6, aSeed) * uPixelRatio * clamp(5.0 / max(distanceToCamera, 0.4), 0.35, 2.6);
         float trailAlpha = aTrail < 0.5 ? 1.0 : uStreak * (1.0 - aTrail * 0.24);
         vAlpha = uReveal * mix(0.18, 0.55, aSeed) * trailAlpha
-          * smoothstep(0.3, 1.2, distanceToCamera) * smoothstep(50.0, 20.0, distanceToCamera);
+          * smoothstep(0.3, 1.2, distanceToCamera) * (1.0 - smoothstep(20.0, 50.0, distanceToCamera));
       }
     `,
     fragmentShader: pointFragment,
@@ -186,7 +189,9 @@ export function createWalkEnvironment(
       varying vec2 vUv;
       void main() {
         vec2 q = (vUv - 0.5) * vec2(2.4, 1.4);
-        float glow = exp(-dot(q, q) * 3.2) * 0.35;
+        vec2 edge = abs(vUv - 0.5);
+        float fade = (1.0 - smoothstep(0.32, 0.5, edge.x)) * (1.0 - smoothstep(0.28, 0.5, edge.y));
+        float glow = exp(-dot(q, q) * 3.2) * 0.35 * fade;
         gl_FragColor = vec4(vec3(0.804, 0.855, 0.886), glow * uReveal);
       }
     `,
@@ -203,7 +208,7 @@ export function createWalkEnvironment(
     update(state, time) {
       groundUniforms.uReveal.value = state.groundReveal;
       groundUniforms.uTime.value = time;
-      dustUniforms.uReveal.value = state.darknessDive;
+      dustUniforms.uReveal.value = state.dustReveal;
       dustUniforms.uStreak.value = state.dustStreak;
       dustUniforms.uTime.value = time;
       lightUniforms.uReveal.value = state.lightReveal;

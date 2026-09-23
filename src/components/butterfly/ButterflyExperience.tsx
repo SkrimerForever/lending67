@@ -1594,8 +1594,10 @@ export function ButterflyExperience() {
         const turnZ = turnEase * -70;
         const turnYaw = -anticipation * 2.2 + turnEase * 88 + turnOvershoot;
         const turnRoll = Math.sin(operatorTurn * Math.PI) * 1.15;
-        caseWorldRef.current.style.transform = `perspective(1400px) translate3d(${-walkState.darknessDive * 24}vw, 0, 0) rotateZ(${turnRoll}deg) rotateY(${turnYaw}deg) translate3d(${turnX}vw, ${turnY}vh, ${pullbackZ + turnZ}px)`;
-        caseWorldRef.current.style.opacity = String(1 - walkState.darknessDive);
+        const displayFade = walkState.darknessDive;
+        caseWorldRef.current.style.transform = `perspective(1400px) translate3d(${-displayFade * 10}vw, 0, ${-displayFade * 480}px) rotateZ(${turnRoll}deg) rotateY(${turnYaw}deg) translate3d(${turnX}vw, ${turnY}vh, ${pullbackZ + turnZ}px)`;
+        caseWorldRef.current.style.opacity = String(1 - displayFade);
+        caseWorldRef.current.style.filter = displayFade > 0.001 ? `blur(${displayFade * 5}px)` : "none";
         caseWorldRef.current.classList.toggle("is-turning", operatorTurn > 0.002);
         if (caseSurfaceRef.current) {
           caseSurfaceRef.current.style.backgroundColor = `rgba(0, 0, 0, ${pullback})`;
