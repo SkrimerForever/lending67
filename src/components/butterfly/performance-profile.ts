@@ -4,6 +4,9 @@ export type PerformanceProfile = {
   antennaParticleCount: number;
   trailParticleCount: number;
   tunnelParticleCount: number;
+  walkerParticleCount: number;
+  walkGroundParticleCount: number;
+  walkDustParticleCount: number;
   pixelRatioCap: number;
   columnSampleWidth: number;
 };
@@ -24,6 +27,9 @@ const HIGH: PerformanceProfile = {
   antennaParticleCount: 240,
   trailParticleCount: 2_600,
   tunnelParticleCount: 2_200,
+  walkerParticleCount: 14_000,
+  walkGroundParticleCount: 26_000,
+  walkDustParticleCount: 1_500,
   pixelRatioCap: 2,
   columnSampleWidth: 520,
 };
@@ -34,6 +40,9 @@ const BALANCED: PerformanceProfile = {
   antennaParticleCount: 160,
   trailParticleCount: 1_200,
   tunnelParticleCount: 1_200,
+  walkerParticleCount: 9_000,
+  walkGroundParticleCount: 16_000,
+  walkDustParticleCount: 1_000,
   pixelRatioCap: 1.5,
   columnSampleWidth: 380,
 };
@@ -44,6 +53,9 @@ const LOW: PerformanceProfile = {
   antennaParticleCount: 100,
   trailParticleCount: 500,
   tunnelParticleCount: 600,
+  walkerParticleCount: 5_000,
+  walkGroundParticleCount: 9_000,
+  walkDustParticleCount: 600,
   pixelRatioCap: 1,
   columnSampleWidth: 280,
 };
