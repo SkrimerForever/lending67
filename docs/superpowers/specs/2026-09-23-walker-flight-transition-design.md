@@ -110,3 +110,32 @@ Not included: case 02 content, identity, or interface; footstep dust puffs; chan
 - The camera overtakes just above the left shoulder, and the figure exits through the lower right.
 - The flight ends inside the silver light, which becomes the case 02 placeholder.
 - The whole sequence reverses cleanly with scroll.
+
+## Revision 1 — after first visual review (2026-09-23)
+
+User feedback: the ground reads as a highway; the walker reads as circles and boxes instead of a human silhouette; the hand-off from case 01 is abrupt.
+
+### Narrow path instead of a highway
+
+- Ground strip width `~14 m → ~5.6 m` (`x ∈ [-2.8, 2.8]`), fading out from `|x| = 1.6`.
+- A narrow walking path (`|x| < 0.45`) is slightly brighter; side hills are lower (`0.12` amplitude, banks rise `0.15`).
+- Ground particle counts scale with the area: HIGH 12 000, BALANCED 8 000, LOW 4 500.
+
+### One continuous human silhouette
+
+- The body is one signed-distance shape (smooth union of anatomical round cones, spheres and ellipsoids) in rest pose: shoulders wider than waist, chest, buttocks, calves, head and neck, a jacket and trousers volume like the Hero figures. Limbs join the torso smoothly; arms never blend into legs.
+- Points are rejection-sampled against that shape: dense in a thin shell at the surface (`-0.022 ≤ d ≤ 0.004`), sparse interior fill (12 %). No internal contours are possible because there is only one surface.
+- Each point stores its rest position, its nearest bone, and an adjacent second bone with a blend weight (`≤ 0.5`), so joints bend without seams.
+- The vertex shader poses 16 bones with the same gait curves as before and blends the two bone transforms per point. Shell points are brighter than fill points.
+- Rest-pose joints: pelvis `0.95`, spine `1.08`, neck `1.50`, head `1.62`; shoulders `±0.2 @ 1.43`; hips `±0.1 @ 0.90`, knees `@ 0.48`, ankles `@ 0.08` (thigh `0.42`, shin `0.40`). Left is `-X`.
+
+### Softer hand-off from case 01
+
+- The walk stage starts at `1.90`, overlapping the end of the operator turn.
+- Dust fades in `1.90–2.00`; a faint ground outline appears from `1.92`, full by `2.10`.
+- The display fades over `1.92–2.08` while drifting back (`-480px` Z), slightly left (`-10vw`), and blurring up to `5px`.
+- The camera path gains a slow first segment (`1.90–1.98`, ~3 m) before the dive, so it eases in.
+
+### Fixes
+
+- The silver light's halo fades to zero at its quad edges (no visible rectangle).
