@@ -6,19 +6,35 @@ const desktop = { reducedMotion: false, narrow: false };
 const narrow = { reducedMotion: false, narrow: true };
 const reduced = { reducedMotion: true, narrow: false };
 
-test("inactive before the operator turn completes", () => {
-  const state = getWalkFlightState(1.9, desktop);
+test("inactive before the walk stage starts", () => {
+  const state = getWalkFlightState(1.85, desktop);
   assert.equal(state.active, false);
   assert.equal(state.darknessDive, 0);
+  assert.equal(state.dustReveal, 0);
   assert.equal(state.caseReveal, 0);
   assert.equal(getWalkFlightState(WALK_START, desktop).active, false);
 });
 
-test("the dive into darkness starts right after the turn", () => {
-  const state = getWalkFlightState(2.02, desktop);
+test("dust appears while the display is still turning", () => {
+  const state = getWalkFlightState(1.95, desktop);
   assert.equal(state.active, true);
-  assert.ok(state.darknessDive > 0 && state.darknessDive < 1);
-  assert.equal(getWalkFlightState(2.06, desktop).darknessDive, 1);
+  assert.ok(state.dustReveal > 0);
+  assert.ok(state.darknessDive > 0 && state.darknessDive < 0.3);
+  assert.equal(getWalkFlightState(2.08, desktop).darknessDive, 1);
+});
+
+test("a faint ground outline appears before the display is gone", () => {
+  const state = getWalkFlightState(2.0, desktop);
+  assert.ok(state.groundReveal > 0 && state.groundReveal < 0.5);
+  assert.ok(getWalkFlightState(2.1, desktop).groundReveal > 0.999);
+});
+
+test("the camera eases in before the dive", () => {
+  const start = getWalkFlightState(1.905, desktop).cameraPosition[2];
+  const slow = getWalkFlightState(1.98, desktop).cameraPosition[2];
+  const fast = getWalkFlightState(2.06, desktop).cameraPosition[2];
+  assert.ok(start - slow < 4, `slow segment ${start - slow}`);
+  assert.ok(slow - fast > 8, `dive segment ${slow - fast}`);
 });
 
 test("the camera starts well behind the walker", () => {
@@ -54,8 +70,8 @@ test("the flight ends inside the light and reveals case 02", () => {
 });
 
 test("camera travel is continuous", () => {
-  let previous = getWalkFlightState(1.981, desktop).cameraPosition;
-  for (let scroll = 1.982; scroll <= 2.6; scroll += 0.001) {
+  let previous = getWalkFlightState(1.901, desktop).cameraPosition;
+  for (let scroll = 1.902; scroll <= 2.6; scroll += 0.001) {
     const next = getWalkFlightState(scroll, desktop).cameraPosition;
     const step = Math.hypot(next[0] - previous[0], next[1] - previous[1], next[2] - previous[2]);
     assert.ok(step < 0.5, `jump ${step} at ${scroll}`);

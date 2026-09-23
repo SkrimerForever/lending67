@@ -8,6 +8,7 @@ export type WalkFlightOptions = {
 export type WalkFlightState = {
   active: boolean;
   darknessDive: number;
+  dustReveal: number;
   groundReveal: number;
   dustStreak: number;
   walkerReveal: number;
@@ -20,7 +21,7 @@ export type WalkFlightState = {
   caseReveal: number;
 };
 
-export const WALK_START = 1.98;
+export const WALK_START = 1.9;
 export const WALK_END = 2.6;
 export const LIGHT_Y = 1.7;
 export const LIGHT_Z = -40;
@@ -32,9 +33,10 @@ const STRIDE_START = 2.02;
 const STRIDE_END = 2.42;
 
 // Scroll time of each camera knot. The shoulder pass happens at 2.24.
-const KNOT_TIMES = [1.98, 2.06, 2.16, 2.24, 2.32, 2.42, 2.5];
+const KNOT_TIMES = [1.9, 1.98, 2.06, 2.16, 2.24, 2.32, 2.42, 2.5];
 
 const DESKTOP_KNOTS: Vec3[] = [
+  [-1.8, 3.15, 21],
   [-1.8, 3.1, 18],
   [-1.6, 2.9, 8],
   [-0.9, 2.3, 2],
@@ -45,6 +47,7 @@ const DESKTOP_KNOTS: Vec3[] = [
 ];
 
 const NARROW_KNOTS: Vec3[] = [
+  [-1.1, 3.15, 22],
   [-1.1, 3.1, 19],
   [-0.9, 2.9, 9],
   [-0.7, 2.35, 2.2],
@@ -99,6 +102,7 @@ const walkerZFor = (stride: number) => -(stride - STRIDE_OFFSET) * CYCLE_LENGTH;
 const INACTIVE: WalkFlightState = {
   active: false,
   darknessDive: 0,
+  dustReveal: 0,
   groundReveal: 0,
   dustStreak: 0,
   walkerReveal: 0,
@@ -119,10 +123,11 @@ export function getWalkFlightState(scroll: number, options: WalkFlightOptions): 
     const settled = smooth(scroll, 1.98, 2.02);
     const light = smooth(scroll, 2.2, 2.24);
     const stride = STRIDE_OFFSET + 0.25;
-    const position: Vec3 = [...knots[1]];
+    const position: Vec3 = [...knots[2]];
     return {
       active: true,
       darknessDive: settled,
+      dustReveal: settled,
       groundReveal: settled,
       dustStreak: 0,
       walkerReveal: settled,
@@ -139,12 +144,13 @@ export function getWalkFlightState(scroll: number, options: WalkFlightOptions): 
   const stride = STRIDE_OFFSET + STRIDE_CYCLES * clamp01((scroll - STRIDE_START) / (STRIDE_END - STRIDE_START));
   const cameraPosition = cameraOnPath(scroll, knots);
   const whiteout = smooth(scroll, 2.44, 2.5);
-  const diveStreak = smooth(scroll, 1.98, 2.02) * (1 - smooth(scroll, 2.04, 2.1));
+  const diveStreak = smooth(scroll, 1.98, 2.02) * (1 - smooth(scroll, 2.06, 2.12));
   const rushStreak = smooth(scroll, 2.36, 2.46) * (1 - whiteout);
   return {
     active: true,
-    darknessDive: smooth(scroll, 1.98, 2.06),
-    groundReveal: smooth(scroll, 2.0, 2.1),
+    darknessDive: smooth(scroll, 1.92, 2.08),
+    dustReveal: smooth(scroll, 1.9, 2.0),
+    groundReveal: 0.35 * smooth(scroll, 1.92, 2.0) + 0.65 * smooth(scroll, 2.0, 2.1),
     dustStreak: Math.max(diveStreak, rushStreak),
     walkerReveal: smooth(scroll, 2.02, 2.1),
     stride,
