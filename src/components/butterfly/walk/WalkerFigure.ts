@@ -41,7 +41,10 @@ const vertexShader = /* glsl */ `
     // Points grazing the silhouette light up as a contour, so arms and hands
     // stay outlined against the body and the sky.
     float edge = smoothstep(0.55, 0.95, 1.0 - abs(facing));
-    vLight = 1.25 * tone * (1.0 + 0.9 * edge)
+    // A key light from above-behind-left shades each point by its surface
+    // direction, so the folds of the clothes get a lit and a shadowed side.
+    float key = 0.45 + 0.75 * max(dot(worldNormal, normalize(vec3(-0.35, 0.75, 0.55))), 0.0);
+    vLight = 1.25 * key * tone * (1.0 + 0.9 * edge)
       * mix(0.85, 1.0, smoothstep(0.4, 1.7, position.y)) * shimmer;
     vAlpha = uReveal * max(smoothstep(-0.15, 0.2, facing), 0.9 * edge)
       * smoothstep(0.18, 0.55, distanceToCamera) * mix(0.85, 1.0, aSeed);

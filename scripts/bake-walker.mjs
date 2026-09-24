@@ -20,7 +20,7 @@ const THREE = await import("three");
 const { FBXLoader } = await import("three/examples/jsm/loaders/FBXLoader.js");
 
 const [input, output, previewDir] = process.argv.slice(2);
-const POINT_COUNT = 28_000;
+const POINT_COUNT = 40_000;
 const SCALE = 0.01; // Mixamo units are centimetres.
 
 // Brightness per clothing piece, so jacket, trousers, hair and shoes read apart.
@@ -158,8 +158,9 @@ const covered = (p) => {
 const totalArea = samples.reduce((sum, s) => sum + s.area, 0);
 const records = [];
 for (const { piece, points, area } of samples) {
-  // Keep density even across pieces: each piece contributes by its surface area.
-  const share = Math.round(POINT_COUNT * 1.6 * area / totalArea);
+  // Density follows surface area; visible skin (hands, face) gets extra detail.
+  const detail = piece.name.endsWith("_Body") ? 1.8 : 1;
+  const share = Math.round(POINT_COUNT * 1.6 * detail * area / totalArea);
   let kept = 0;
   for (const p of points) {
     if (kept >= share) break;
@@ -193,6 +194,8 @@ console.log(`wrote ${kept.length} points to ${output}`);
 
 if (previewDir) {
   const W = 600, H = 800, f = 700, distance = 4;
+  // Same key light as the shader: from above, behind and to the left of the walker.
+  const LIGHT = (() => { const v = [-0.35, 0.75, 0.55]; const l = Math.hypot(...v); return v.map((c) => c / l); })();
   // back: camera behind the walker (+Z) looking -Z; side: camera on his left (-X) looking +X.
   const cameras = { back: [0, 1.1, distance], side: [-distance, 1.1, 0] };
   for (const view of ["back", "side"]) {
@@ -207,13 +210,14 @@ if (previewDir) {
       const smooth = (e0, e1, v) => { const t = Math.min(1, Math.max(0, (v - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
       const edge = smooth(0.55, 0.95, 1 - Math.abs(facing));
       const visible = Math.max(smooth(-0.15, 0.2, facing), 0.9 * edge);
+      const light = 0.45 + 0.75 * Math.max(0, data[o + 3] * LIGHT[0] + data[o + 4] * LIGHT[1] + data[o + 5] * LIGHT[2]);
       if (visible <= 0) continue;
       const [across, depth] = view === "back" ? [x, cz - z] : [z, x - cx];
       const u = Math.round(W / 2 + across * f / depth);
       const v = Math.round(H / 2 - (y - 0.95) * f / depth);
       for (const [du, dv] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
         const px = u + du, py = v + dv;
-        if (px >= 0 && px < W && py >= 0 && py < H) image[py * W + px] += visible * (0.5 + 0.5 * tone) * (1 + 0.9 * edge) * 0.3;
+        if (px >= 0 && px < W && py >= 0 && py < H) image[py * W + px] += visible * light * (0.5 + 0.5 * tone) * (1 + 0.9 * edge) * 0.22;
       }
     }
     const bytes = Buffer.alloc(W * H);
