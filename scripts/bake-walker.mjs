@@ -130,19 +130,27 @@ function sampleSurface({ posed, index }, count) {
   return { points, area: total };
 }
 
-// Oversample, then drop body skin that sits under clothing or hair (within ~3 cm).
+// Oversample, then drop body skin that is actually under clothing or hair:
+// within 1.5 cm of a cloth point. A coarse neighbourhood would also eat the
+// wrists and hands right next to the cuffs.
 const samples = pieces.map((piece) => ({ piece, ...sampleSurface(piece, POINT_COUNT) }));
-const clothKeys = new Set();
-const cell = 3;
-const key = (p) => `${Math.floor(p.x / cell)},${Math.floor(p.y / cell)},${Math.floor(p.z / cell)}`;
+const COVER = 1.5;
+const clothCells = new Map();
+const cellOf = (value) => Math.floor(value / COVER);
 for (const { piece, points } of samples) {
   if (piece.name.endsWith("_Body")) continue;
-  for (const p of points) clothKeys.add(key(p));
+  for (const p of points) {
+    const key = `${cellOf(p.x)},${cellOf(p.y)},${cellOf(p.z)}`;
+    if (!clothCells.has(key)) clothCells.set(key, []);
+    clothCells.get(key).push(p);
+  }
 }
 const covered = (p) => {
-  const [x, y, z] = key(p).split(",").map(Number);
+  const x = cellOf(p.x), y = cellOf(p.y), z = cellOf(p.z);
   for (let dx = -1; dx <= 1; dx += 1) for (let dy = -1; dy <= 1; dy += 1) for (let dz = -1; dz <= 1; dz += 1) {
-    if (clothKeys.has(`${x + dx},${y + dy},${z + dz}`)) return true;
+    for (const cloth of clothCells.get(`${x + dx},${y + dy},${z + dz}`) ?? []) {
+      if (cloth.distanceToSquared(p) < COVER * COVER) return true;
+    }
   }
   return false;
 };
