@@ -32,12 +32,15 @@ const vertexShader = /* glsl */ `
     vec4 viewPosition = viewMatrix * worldPosition;
     gl_Position = projectionMatrix * viewPosition;
     float distanceToCamera = -viewPosition.z;
-    gl_PointSize = mix(1.0, 1.9, aSeed) * uPixelRatio
+    gl_PointSize = mix(1.3, 2.3, aSeed) * uPixelRatio
       * clamp(4.5 / max(distanceToCamera, 0.3), 0.6, 3.2);
     float shimmer = 0.88 + 0.12 * sin(uTime * 1.7 + aSeed * 40.0);
-    vLight = aTone * mix(0.8, 1.0, smoothstep(0.4, 1.7, position.y)) * shimmer;
+    // Lift the dark pieces (trousers, shoes, hair) so the legs never sink into
+    // the black sky, while keeping clothing tones distinct.
+    float tone = 0.5 + 0.5 * aTone;
+    vLight = 1.25 * tone * mix(0.85, 1.0, smoothstep(0.4, 1.7, position.y)) * shimmer;
     vAlpha = uReveal * smoothstep(-0.15, 0.2, facing)
-      * smoothstep(0.18, 0.55, distanceToCamera) * mix(0.6, 0.95, aSeed);
+      * smoothstep(0.18, 0.55, distanceToCamera) * mix(0.85, 1.0, aSeed);
   }
 `;
 
