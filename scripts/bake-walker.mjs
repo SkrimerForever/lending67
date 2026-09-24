@@ -20,7 +20,7 @@ const THREE = await import("three");
 const { FBXLoader } = await import("three/examples/jsm/loaders/FBXLoader.js");
 
 const [input, output, previewDir] = process.argv.slice(2);
-const POINT_COUNT = 16_000;
+const POINT_COUNT = 28_000;
 const SCALE = 0.01; // Mixamo units are centimetres.
 
 // Brightness per clothing piece, so jacket, trousers, hair and shoes read apart.
