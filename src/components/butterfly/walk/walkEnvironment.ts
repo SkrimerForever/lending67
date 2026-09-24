@@ -58,6 +58,24 @@ function sampleDust(count: number) {
   return { positions, seeds, trail };
 }
 
+const STAR_COUNT = 900;
+const STAR_RADIUS = 60;
+
+function sampleStars(count: number) {
+  const positions = new Float32Array(count * 3);
+  const seeds = new Float32Array(count);
+  for (let i = 0; i < count; i += 1) {
+    const azimuth = Math.random() * Math.PI * 2;
+    // Keep stars above the horizon, denser toward it like a real sky.
+    const elevation = THREE.MathUtils.degToRad(3 + Math.pow(Math.random(), 1.6) * 72);
+    positions[i * 3] = Math.cos(elevation) * Math.sin(azimuth) * STAR_RADIUS;
+    positions[i * 3 + 1] = Math.sin(elevation) * STAR_RADIUS;
+    positions[i * 3 + 2] = -Math.cos(elevation) * Math.cos(azimuth) * STAR_RADIUS;
+    seeds[i] = Math.random();
+  }
+  return { positions, seeds };
+}
+
 const pointFragment = /* glsl */ `
   varying float vAlpha;
   void main() {
@@ -137,7 +155,7 @@ export function createWalkEnvironment(
         float distanceToCamera = -viewPosition.z;
         gl_PointSize = mix(0.8, 1.6, aSeed) * uPixelRatio * clamp(5.0 / max(distanceToCamera, 0.4), 0.35, 2.6);
         float trailAlpha = aTrail < 0.5 ? 1.0 : uStreak * (1.0 - aTrail * 0.24);
-        vAlpha = uReveal * mix(0.18, 0.55, aSeed) * trailAlpha
+        vAlpha = uReveal * mix(0.3, 0.75, aSeed) * trailAlpha
           * smoothstep(0.3, 1.2, distanceToCamera) * (1.0 - smoothstep(20.0, 50.0, distanceToCamera));
       }
     `,
@@ -149,6 +167,48 @@ export function createWalkEnvironment(
   const dustPoints = new THREE.Points(dustGeometry, dustMaterial);
   dustPoints.frustumCulled = false;
   group.add(dustPoints);
+
+  const stars = sampleStars(STAR_COUNT);
+  const starGeometry = new THREE.BufferGeometry();
+  starGeometry.setAttribute("position", new THREE.BufferAttribute(stars.positions, 3));
+  starGeometry.setAttribute("aSeed", new THREE.BufferAttribute(stars.seeds, 1));
+  const starUniforms = { uReveal: { value: 0 }, uTime: { value: 0 }, uPixelRatio: { value: pixelRatio } };
+  const starMaterial = new THREE.ShaderMaterial({
+    uniforms: starUniforms,
+    vertexShader: /* glsl */ `
+      uniform float uReveal;
+      uniform float uTime;
+      uniform float uPixelRatio;
+      attribute float aSeed;
+      varying float vAlpha;
+      varying float vCore;
+      void main() {
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        // A few large, bright stars among many small ones.
+        float magnitude = pow(aSeed, 6.0);
+        gl_PointSize = mix(1.4, 4.2, magnitude) * uPixelRatio;
+        float twinkle = 0.8 + 0.2 * sin(uTime * (0.6 + aSeed * 1.8) + aSeed * 60.0);
+        vAlpha = uReveal * mix(0.55, 1.0, magnitude) * twinkle;
+        vCore = magnitude;
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      varying float vAlpha;
+      varying float vCore;
+      void main() {
+        float distanceToCenter = length(gl_PointCoord - 0.5);
+        float dotAlpha = 1.0 - smoothstep(0.12, 0.5, distanceToCenter);
+        float core = (1.0 - smoothstep(0.0, 0.18, distanceToCenter)) * vCore;
+        gl_FragColor = vec4(vec3(0.9, 0.93, 0.96) + core * 0.1, (dotAlpha + core) * vAlpha);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const starPoints = new THREE.Points(starGeometry, starMaterial);
+  starPoints.frustumCulled = false;
+  group.add(starPoints);
 
   const lightUniforms = { uReveal: { value: 0 } };
   const panelGeometry = new THREE.PlaneGeometry(3.2, 1.8);
@@ -211,15 +271,21 @@ export function createWalkEnvironment(
       dustUniforms.uReveal.value = state.dustReveal;
       dustUniforms.uStreak.value = state.dustStreak;
       dustUniforms.uTime.value = time;
+      // The sky travels with the camera, so stars read as infinitely far away.
+      starPoints.position.set(...state.cameraPosition);
+      starUniforms.uReveal.value = state.dustReveal;
+      starUniforms.uTime.value = time;
       lightUniforms.uReveal.value = state.lightReveal;
     },
     setPixelRatio(value) {
       groundUniforms.uPixelRatio.value = value;
       dustUniforms.uPixelRatio.value = value;
+      starUniforms.uPixelRatio.value = value;
     },
     dispose() {
       groundGeometry.dispose(); groundMaterial.dispose();
       dustGeometry.dispose(); dustMaterial.dispose();
+      starGeometry.dispose(); starMaterial.dispose();
       panelGeometry.dispose(); panelMaterial.dispose();
       haloGeometry.dispose(); haloMaterial.dispose();
     },

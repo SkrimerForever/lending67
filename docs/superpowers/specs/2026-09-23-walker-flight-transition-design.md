@@ -139,3 +139,10 @@ User feedback: the ground reads as a highway; the walker reads as circles and bo
 ### Fixes
 
 - The silver light's halo fades to zero at its quad edges (no visible rectangle).
+
+## Revision 2 — second visual review (2026-09-24)
+
+- The walker holds one mid-stride pose (`uStride = 0.06`: left leg forward, right heel lifting) at `z = -0.9`; he no longer walks.
+- After the shoulder pass (`2.24`) the flight reaches case 02 within one short scroll: light `2.22–2.31`, whiteout `2.31–2.35`, case reveal `2.35–2.38`, end `2.40`. Scroll range `2.60 → 2.40`: `.study-shell` `2355svh`, `timelineClock` duration `236.6`.
+- Silhouette: shoulders slope from the neck (trapezius) instead of a flat bar, thinner neck, chest no longer domes up to the neck, slight waist, arms hang a little further from the body.
+- Sky: a separate star layer (900 stars on a camera-following dome, a few large bright ones, gentle twinkle); floating dust is brighter.

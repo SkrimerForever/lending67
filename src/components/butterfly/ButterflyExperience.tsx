@@ -469,7 +469,7 @@ export function ButterflyExperience() {
     const select = gsap.utils.selector(stage);
     const timelineClock = { value: 0 };
     const scrollTween = gsap.to(scrollRef.current, {
-      value: 2.6,
+      value: 2.4,
       ease: "none",
       scrollTrigger: {
         trigger: shell,
@@ -549,8 +549,8 @@ export function ButterflyExperience() {
         )
         // Keep the original scene timings aligned while scrollRef grows:
         // the timeline total (169 + duration) scales with the scroll range
-        // (334.6 at 1.98 → 439.4 at 2.60 for the walker flight).
-        .to(timelineClock, { value: 1, duration: 270.4, ease: "none" }, 169);
+        // (334.6 at 1.98 → 405.6 at 2.40 for the walker flight).
+        .to(timelineClock, { value: 1, duration: 236.6, ease: "none" }, 169);
     }, stage);
 
     return () => {
@@ -1633,7 +1633,7 @@ export function ButterflyExperience() {
       const screenDive = THREE.MathUtils.smoothstep(finalFlight, 0.38, 1);
       cameraTarget.y += (impulseDistance * 0.035 - screenDive * 0.075) * cameraCatch;
       camera.lookAt(cameraTarget);
-      // From 1.98 the walk scene owns the camera pose.
+      // From 1.90 the walk scene owns the camera pose.
       if (walkVeilRef.current) {
         walkVeilRef.current.style.opacity = String(walkState.whiteout * (1 - walkState.caseReveal));
       }

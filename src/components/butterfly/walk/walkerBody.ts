@@ -13,8 +13,8 @@ export const WALKER_LENGTHS = { thigh: 0.42, shin: 0.4, pelvisY: 0.95 } as const
 
 const side = (s: number): Vec3[] => [
   [s * 0.2, 1.43, 0],
-  [s * 0.215, 1.15, 0],
-  [s * 0.235, 0.905, -0.01],
+  [s * 0.225, 1.15, 0],
+  [s * 0.245, 0.905, -0.01],
 ];
 const legJoints = (s: number): Vec3[] => [
   [s * 0.1, 0.9, 0],
@@ -40,10 +40,10 @@ const sphere = (bone: number, c: Vec3, r: number): Primitive => ({ bone, kind: "
 const ellipsoid = (bone: number, c: Vec3, r: Vec3): Primitive => ({ bone, kind: "ellipsoid", c, r });
 
 const arm = (s: number, offset: number): Primitive[] => [
-  sphere(offset, [s * 0.195, 1.415, 0], 0.068),
-  cone(offset, [s * 0.2, 1.4, 0], [s * 0.215, 1.15, 0], 0.056, 0.045),
-  cone(offset + 1, [s * 0.215, 1.15, 0], [s * 0.235, 0.915, -0.01], 0.045, 0.035),
-  ellipsoid(offset + 2, [s * 0.238, 0.84, -0.012], [0.03, 0.072, 0.046]),
+  sphere(offset, [s * 0.195, 1.405, 0], 0.062),
+  cone(offset, [s * 0.2, 1.39, 0], [s * 0.225, 1.15, 0], 0.052, 0.043),
+  cone(offset + 1, [s * 0.225, 1.15, 0], [s * 0.245, 0.915, -0.01], 0.043, 0.033),
+  ellipsoid(offset + 2, [s * 0.248, 0.84, -0.012], [0.028, 0.07, 0.044]),
 ];
 
 const leg = (s: number, offset: number): Primitive[] => [
@@ -56,13 +56,17 @@ const leg = (s: number, offset: number): Primitive[] => [
 // Back is +Z (the walker faces -Z).
 const GROUPS: Record<Group, Primitive[]> = {
   torso: [
-    cone(0, [0, 0.9, 0], [0, 1.1, 0], 0.14, 0.135, 0.72),
-    sphere(0, [-0.07, 0.88, 0.05], 0.095),
-    sphere(0, [0.07, 0.88, 0.05], 0.095),
-    cone(1, [0, 1.1, 0], [0, 1.34, 0], 0.14, 0.165, 0.64),
-    cone(1, [-0.16, 1.425, 0.01], [0.16, 1.425, 0.01], 0.06, 0.06, 0.85),
-    cone(2, [0, 1.47, 0.01], [0, 1.63, 0], 0.058, 0.05),
-    ellipsoid(3, [0, 1.735, 0.005], [0.078, 0.105, 0.093]),
+    // Hips, then a slight waist, then a chest that widens toward the armpits.
+    cone(0, [0, 0.9, 0], [0, 1.02, 0], 0.135, 0.125, 0.75),
+    sphere(0, [-0.068, 0.88, 0.045], 0.088),
+    sphere(0, [0.068, 0.88, 0.045], 0.088),
+    cone(1, [0, 1.0, 0], [0, 1.16, 0], 0.125, 0.125, 0.66),
+    cone(1, [0, 1.16, 0], [0, 1.29, 0.005], 0.13, 0.148, 0.6),
+    // Shoulders slope down from the neck (trapezius) instead of a flat bar.
+    cone(1, [-0.05, 1.46, 0.015], [-0.175, 1.405, 0.01], 0.042, 0.055, 0.9),
+    cone(1, [0.05, 1.46, 0.015], [0.175, 1.405, 0.01], 0.042, 0.055, 0.9),
+    cone(2, [0, 1.43, 0.015], [0, 1.63, 0], 0.048, 0.043),
+    ellipsoid(3, [0, 1.735, 0.005], [0.074, 0.1, 0.088]),
   ],
   armL: arm(-1, 4),
   armR: arm(1, 7),
