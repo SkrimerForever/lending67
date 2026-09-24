@@ -469,7 +469,7 @@ export function ButterflyExperience() {
     const select = gsap.utils.selector(stage);
     const timelineClock = { value: 0 };
     const scrollTween = gsap.to(scrollRef.current, {
-      value: 2.4,
+      value: 2.22,
       ease: "none",
       scrollTrigger: {
         trigger: shell,
@@ -549,8 +549,8 @@ export function ButterflyExperience() {
         )
         // Keep the original scene timings aligned while scrollRef grows:
         // the timeline total (169 + duration) scales with the scroll range
-        // (334.6 at 1.98 → 405.6 at 2.40 for the walker flight).
-        .to(timelineClock, { value: 1, duration: 236.6, ease: "none" }, 169);
+        // (334.6 at 1.98 → 375.2 at 2.22 for the walker flight).
+        .to(timelineClock, { value: 1, duration: 206.2, ease: "none" }, 169);
     }, stage);
 
     return () => {

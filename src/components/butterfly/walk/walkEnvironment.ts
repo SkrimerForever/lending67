@@ -22,7 +22,7 @@ function sampleGround(count: number) {
   while (written < count && attempts < count * 12) {
     attempts += 1;
     const x = (Math.random() * 2 - 1) * 2.8;
-    const z = 14 - Math.random() * 62;
+    const z = 12 - Math.random() * 28;
     const band = Math.pow(0.5 + 0.5 * Math.sin((x * 1.25 + Math.sin(z * 0.17) * 2.4 + z * 0.05) * 2.1), 3);
     const edge = 1 - smoothstep(Math.abs(x), 1.6, 2.8);
     if (Math.random() > (0.18 + 0.82 * band) * edge) continue;
@@ -46,7 +46,7 @@ function sampleDust(count: number) {
   for (let i = 0; i < count; i += 1) {
     const x = (Math.random() * 2 - 1) * 8;
     const y = Math.random() * 6;
-    const z = 16 - Math.random() * 60;
+    const z = 16 - Math.random() * 34;
     const seed = Math.random();
     for (let k = 0; k < DUST_TRAIL; k += 1) {
       const index = i * DUST_TRAIL + k;

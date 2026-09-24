@@ -146,3 +146,8 @@ User feedback: the ground reads as a highway; the walker reads as circles and bo
 - After the shoulder pass (`2.24`) the flight reaches case 02 within one short scroll: light `2.22–2.31`, whiteout `2.31–2.35`, case reveal `2.35–2.38`, end `2.40`. Scroll range `2.60 → 2.40`: `.study-shell` `2355svh`, `timelineClock` duration `236.6`.
 - Silhouette: shoulders slope from the neck (trapezius) instead of a flat bar, thinner neck, chest no longer domes up to the neck, slight waist, arms hang a little further from the body.
 - Sky: a separate star layer (900 stars on a camera-following dome, a few large bright ones, gentle twinkle); floating dust is brighter.
+
+## Revision 3 — shorter flight (2026-09-24)
+
+- The whole walk stage is compressed: dive `1.90–2.00`, shoulder pass `2.10`, light `2.08–2.14`, whiteout `2.14–2.16`, case reveal `2.16–2.19`, end `2.22`. Scroll range `2.22`: `.study-shell` `2195svh`, `timelineClock` duration `206.2`.
+- Shorter path: the light stands at `z = -14` (was `-40`); the ground runs `z ∈ [-16, 12]` and ends under the light; dust spans `z ∈ [-18, 16]`. Ground counts HIGH 6 000 / BALANCED 4 000 / LOW 2 200.
