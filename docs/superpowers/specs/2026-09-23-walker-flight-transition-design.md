@@ -157,3 +157,10 @@ User feedback: the ground reads as a highway; the walker reads as circles and bo
 - Each body primitive carries a material: skin, hair, jacket, trousers, shoes. A point takes the material of its nearest primitive; the shader tones them (skin 1.0, jacket 0.95, trousers 0.42, hair 0.35, shoes 0.25) — the contrast must be strong because dense additive points otherwise saturate into one white mass.
 - Jacket: body over the hips with a collar at the neck; fuller sleeves with cuffs. Trousers: straight legs to the ankle. Shoes: larger, darker feet. Hair: a short cap over the crown and back of the head with slight fuzz.
 - Head and torso: a short solid neck (`r 0.058`), a larger head with a jaw instead of a ball on a stick, and deeper torso cross-sections (depth factors `0.78–0.82`) so the side view is not a plank.
+
+## Revision 5 — a real character instead of a procedural body (2026-09-24)
+
+- The procedural SDF body is replaced by points baked from a Mixamo character (`assets/character.fbx`, not committed, git-ignored) with `scripts/bake-walker.mjs`: the skeleton is posed mid-stride, skinned on the CPU, sampled uniformly over the surface (skin hidden under clothing and hair is dropped), and written to `public/walker-points.bin` (16 000 records `[x, y, z, nx, ny, nz, tone, seed]`, ~0.5 MB). The page never loads the 54 MB model.
+- Tones per clothing piece: skin 1.0, sweater 0.95, collar 0.9, trousers 0.42, shoes 0.25, hair 0.22.
+- The shader hides points whose surface faces away from the camera, so the figure reads as a solid silhouette.
+- Re-bake after changing the pose or tones: `node scripts/bake-walker.mjs assets/character.fbx public/walker-points.bin [preview-dir]`.

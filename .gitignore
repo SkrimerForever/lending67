@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Source 3D models (large; baked into public/walker-points.bin)
+/assets/*.fbx
