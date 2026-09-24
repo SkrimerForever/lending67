@@ -10,6 +10,7 @@ import { HeroStory } from "./HeroStory";
 import { LoadingLine } from "./LoadingLine";
 import { getPerformanceProfile, type PerformanceProfile } from "./performance-profile";
 import { SecondCaseStub } from "./SecondCaseStub";
+import { ThirdCase } from "./ThirdCase";
 import { createWalkScene } from "./walk/createWalkScene";
 import { getWalkFlightState } from "./walk/walkFlightState";
 
@@ -420,6 +421,7 @@ export function ButterflyExperience() {
   const caseMetaRef = useRef<HTMLSpanElement>(null);
   const walkVeilRef = useRef<HTMLDivElement>(null);
   const caseTwoRef = useRef<HTMLElement>(null);
+  const caseThreeRef = useRef<HTMLElement>(null);
   const uniformsRef = useRef<Uniforms | null>(null);
   const progressRef = useRef({ value: 0 });
   const flightRef = useRef({ value: 0 });
@@ -462,10 +464,11 @@ export function ButterflyExperience() {
     if (!shell || !stage) return;
 
     gsap.registerPlugin(ScrollTrigger);
-    const animationEnd = () => `+=${Math.max(
+    const storyScrollDistance = () => Math.max(
       window.innerHeight,
-      shell.offsetHeight - window.innerHeight * 2.1,
-    )}`;
+      Math.min(shell.offsetHeight, window.innerHeight * 21.95) - window.innerHeight * 2.1,
+    );
+    const animationEnd = () => `+=${storyScrollDistance()}`;
     const select = gsap.utils.selector(stage);
     const timelineClock = { value: 0 };
     const scrollTween = gsap.to(scrollRef.current, {
@@ -478,6 +481,108 @@ export function ButterflyExperience() {
         scrub: 1.1,
       },
     });
+
+    const moexActionPoint = () => {
+      const terminal = stage.querySelector<HTMLElement>(".moex-terminal");
+      const action = stage.querySelector<HTMLElement>(".moex-sidebar__action");
+      if (!terminal || !action) return { x: 80, y: 170, width: 900, height: 600 };
+      const terminalBounds = terminal.getBoundingClientRect();
+      const actionBounds = action.getBoundingClientRect();
+      return {
+        x: actionBounds.left - terminalBounds.left + actionBounds.width * 0.58,
+        y: actionBounds.top - terminalBounds.top + actionBounds.height * 0.52,
+        width: terminalBounds.width,
+        height: terminalBounds.height,
+      };
+    };
+    const moexTracePoint = () => {
+      const dashboard = stage.querySelector<HTMLElement>(".moex-dashboard");
+      const trades = stage.querySelector<HTMLElement>(".moex-trades-view");
+      const trade = stage.querySelector<HTMLElement>(".moex-trades-view__selected");
+      if (!dashboard || !trades || !trade) return { x: 450, y: 190 };
+      return {
+        x: dashboard.offsetLeft + trades.offsetLeft + trade.offsetLeft + trade.offsetWidth * 0.33,
+        y: dashboard.offsetTop + trades.offsetTop + trade.offsetTop + trade.offsetHeight * 0.5,
+      };
+    };
+    const canTurnMoex = () => window.innerWidth > 760
+      && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const moexTimeline = gsap.timeline({
+      scrollTrigger: {
+        trigger: shell,
+        start: () => `top+=${storyScrollDistance()} top`,
+        end: () => `top+=${storyScrollDistance() + window.innerHeight * 5.8} top`,
+        scrub: 0.8,
+        invalidateOnRefresh: true,
+      },
+    });
+    moexTimeline
+      .fromTo(select(".moex-demo-cursor"),
+        { opacity: 0, x: () => moexActionPoint().x + moexActionPoint().width * 0.46, y: () => moexActionPoint().y - moexActionPoint().height * 0.18 },
+        { opacity: 1, x: () => moexActionPoint().x - 2.5, y: () => moexActionPoint().y - 2, duration: 1.1, ease: "power2.inOut" }, 0.1)
+      .set(select(".moex-demo-click"), { x: () => moexActionPoint().x - 11, y: () => moexActionPoint().y - 11 }, 0)
+      .to(select(".moex-sidebar nav > div.is-active"), { backgroundColor: "transparent", borderColor: "transparent", duration: 0.18 }, 1.18)
+      .to(select(".moex-sidebar__action"), { backgroundColor: "#2d493b", borderColor: "#8acbab", color: "#f0fff5", duration: 0.16 }, 1.18)
+      .to(select(".moex-sidebar__action"), { backgroundColor: "#222c26", borderColor: "#4a755b", color: "#e4f7e9", duration: 0.32 }, 1.37)
+      .fromTo(select(".moex-demo-click"), { opacity: 0, scale: 0.55 }, { opacity: 0.9, scale: 1.15, duration: 0.19 }, 1.18)
+      .to(select(".moex-demo-click"), { opacity: 0, scale: 2.2, duration: 0.35 }, 1.37)
+      .fromTo(select(".moex-demo-flash"), { opacity: 0 }, { opacity: 0.24, duration: 0.13 }, 1.36)
+      .to(select(".moex-demo-flash"), { opacity: 0, duration: 0.42 }, 1.49)
+      .fromTo(select(".moex-terminal"),
+        { transformPerspective: 1600, rotationY: () => canTurnMoex() ? -2.6 : 0, rotationX: () => canTurnMoex() ? 0.7 : 0, rotation: 0, x: 0, y: 0 },
+        { rotationY: () => canTurnMoex() ? 3.1 : 0, rotationX: () => canTurnMoex() ? -0.6 : 0, rotation: () => canTurnMoex() ? -0.35 : 0, x: () => canTurnMoex() ? 8 : 0, y: () => canTurnMoex() ? -4 : 0, duration: 1.05, ease: "power2.inOut" }, 1.28)
+      .to(select(".moex-terminal"), { rotationY: () => canTurnMoex() ? 2.1 : 0, rotationX: () => canTurnMoex() ? -0.35 : 0, rotation: () => canTurnMoex() ? -0.15 : 0, duration: 0.45, ease: "power2.out" }, 2.33)
+      .to(select(".moex-heartbeats"), { opacity: 0, y: -10, duration: 0.26, ease: "power2.in" }, 1.38)
+      .to(select(".moex-dashboard__summary"), { opacity: 0, y: -20, scale: 0.97, duration: 0.45, ease: "power2.inOut" }, 1.4)
+      .to(select(".moex-dashboard__main"), { opacity: 0, y: -24, scale: 0.98, duration: 0.48, ease: "power2.inOut" }, 1.48)
+      .to(select(".moex-dashboard__bottom"), { opacity: 0, y: -20, scale: 0.98, duration: 0.46, ease: "power2.inOut" }, 1.56)
+      .to(select(".moex-crumb-overview"), { opacity: 0, y: -7, duration: 0.23 }, 1.5)
+      .fromTo(select(".moex-crumb-trades"), { opacity: 0, y: 7 }, { opacity: 1, y: 0, duration: 0.32, ease: "power2.out" }, 1.68)
+      .to(select(".moex-trades-view"), { autoAlpha: 1, y: 0, duration: 0.3, ease: "power2.out" }, 1.6)
+      .fromTo(select(".moex-trades-view__toolbar, .moex-trades-view__columns"), { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.48, stagger: 0.13, ease: "power2.out" }, 1.74)
+      .fromTo(select(".moex-trades-view__row"), { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.52, stagger: 0.13, ease: "power2.out" }, 2.06)
+      .to(select(".moex-demo-cursor"), { x: () => moexTracePoint().x - 2.5, y: () => moexTracePoint().y - 2, duration: 0.88, ease: "power2.inOut" }, 3.33)
+      .to(select(".moex-trades-view__selected"), { backgroundColor: "#1c3026", duration: 0.23 }, 4.12)
+      .set(select(".moex-demo-click"), { x: () => moexTracePoint().x - 11, y: () => moexTracePoint().y - 11 }, 4.1)
+      .fromTo(select(".moex-demo-click"), { opacity: 0, scale: 0.55 }, { opacity: 0.9, scale: 1.15, duration: 0.18 }, 4.18)
+      .to(select(".moex-demo-click"), { opacity: 0, scale: 2.2, duration: 0.35 }, 4.36)
+      .to(select(".moex-sidebar__action"), { backgroundColor: "transparent", borderColor: "transparent", color: "#a5aaaa", duration: 0.22 }, 4.42)
+      .to(select(".moex-sidebar__reasoning"), { backgroundColor: "#222c26", borderColor: "#4a755b", color: "#e4f7e9", duration: 0.3 }, 4.46)
+      .to(select(".moex-crumb-trades"), { opacity: 0, y: -7, duration: 0.2 }, 4.4)
+      .fromTo(select(".moex-crumb-trace"), { opacity: 0, y: 7 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 4.55)
+      .to(select(".moex-trades-view"), { autoAlpha: 0, y: -12, duration: 0.34, ease: "power2.inOut" }, 4.4)
+      .fromTo(select(".moex-trace-view"), { autoAlpha: 0, y: 13 }, { autoAlpha: 1, y: 0, duration: 0.42, ease: "power2.out" }, 4.57)
+      .fromTo(select(".moex-trace-view__hero"), { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.42, ease: "power2.out" }, 4.67)
+      .fromTo(select(".moex-trace-step"), { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: 0.34, stagger: 0.17, ease: "power2.out" }, 4.91)
+      .fromTo(select(".moex-trace-card"), { opacity: 0, x: 13 }, { opacity: 1, x: 0, duration: 0.4, stagger: 0.16, ease: "power2.out" }, 5.03)
+      .to(select(".moex-demo-cursor"), { opacity: 0, duration: 0.3 }, 5.45);
+
+    const reducedTransition = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const thirdCaseTimeline = gsap.timeline({
+      scrollTrigger: {
+        trigger: shell,
+        start: () => `top+=${storyScrollDistance() + window.innerHeight * 6.0} top`,
+        end: () => `top+=${storyScrollDistance() + window.innerHeight * 9.4} top`,
+        scrub: 0.8,
+        invalidateOnRefresh: true,
+      },
+    });
+    if (reducedTransition) {
+      thirdCaseTimeline.fromTo(select(".case-three"), { opacity: 0 }, { opacity: 1, duration: 1, ease: "none" });
+    } else {
+      const closedDoor = () => window.innerWidth <= 760
+        ? "inset(0% 49.5% 0% 49.5%)"
+        : "inset(0% 34.5% 0% 64.5%)";
+      thirdCaseTimeline
+        .fromTo(select(".moex-terminal"), { x: 8, scale: 1 }, { x: "-7vw", scale: 0.96, opacity: 0.55, duration: 0.78, ease: "power2.inOut" }, 0.13)
+        .fromTo(select(".moex-copy"), { x: 0 }, { x: "7vw", opacity: 0.55, duration: 0.78, ease: "power2.inOut" }, 0.13)
+        .set(select(".case-three"), { opacity: 1 }, 0.24)
+        .fromTo(select(".case-three"),
+          { clipPath: closedDoor, scale: 1.035 },
+          { clipPath: "inset(0% 0% 0% 0%)", scale: 1, duration: 1.0, ease: "power2.inOut", immediateRender: true }, 0.24)
+        .to(select(".moex-terminal, .moex-copy"), { opacity: 0, duration: 0.2, ease: "power2.in" }, 0.82);
+    }
 
     const context = gsap.context(() => {
       const timeline = gsap.timeline({
@@ -556,6 +661,10 @@ export function ButterflyExperience() {
     return () => {
       context.revert();
       scrollTween.kill();
+      moexTimeline.scrollTrigger?.kill();
+      moexTimeline.kill();
+      thirdCaseTimeline.scrollTrigger?.kill();
+      thirdCaseTimeline.kill();
     };
   }, []);
 
@@ -1635,7 +1744,7 @@ export function ButterflyExperience() {
       camera.lookAt(cameraTarget);
       // From 1.90 the walk scene owns the camera pose.
       if (walkVeilRef.current) {
-        walkVeilRef.current.style.opacity = String(walkState.whiteout * (1 - walkState.caseReveal));
+        walkVeilRef.current.style.opacity = String(walkState.whiteout * (1 - walkState.caseReveal) * 0.12);
       }
       if (caseTwoRef.current) {
         caseTwoRef.current.style.opacity = String(walkState.caseReveal);
@@ -1705,6 +1814,7 @@ export function ButterflyExperience() {
         />
 
         <SecondCaseStub veilRef={walkVeilRef} stubRef={caseTwoRef} />
+        <ThirdCase sectionRef={caseThreeRef} />
 
         <LoadingLine progress={loadingProgress} complete={loadingComplete} />
       </div>
