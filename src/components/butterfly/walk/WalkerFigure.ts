@@ -38,8 +38,12 @@ const vertexShader = /* glsl */ `
     // Lift the dark pieces (trousers, shoes, hair) so the legs never sink into
     // the black sky, while keeping clothing tones distinct.
     float tone = 0.5 + 0.5 * aTone;
-    vLight = 1.25 * tone * mix(0.85, 1.0, smoothstep(0.4, 1.7, position.y)) * shimmer;
-    vAlpha = uReveal * smoothstep(-0.15, 0.2, facing)
+    // Points grazing the silhouette light up as a contour, so arms and hands
+    // stay outlined against the body and the sky.
+    float edge = smoothstep(0.55, 0.95, 1.0 - abs(facing));
+    vLight = 1.25 * tone * (1.0 + 0.9 * edge)
+      * mix(0.85, 1.0, smoothstep(0.4, 1.7, position.y)) * shimmer;
+    vAlpha = uReveal * max(smoothstep(-0.15, 0.2, facing), 0.9 * edge)
       * smoothstep(0.18, 0.55, distanceToCamera) * mix(0.85, 1.0, aSeed);
   }
 `;

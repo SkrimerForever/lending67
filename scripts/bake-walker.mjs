@@ -187,14 +187,19 @@ if (previewDir) {
     for (let i = 0; i < kept.length; i += 1) {
       const o = i * STRIDE;
       const x = data[o], y = data[o + 1], z = data[o + 2], tone = data[o + 6];
-      const facing = (cx - x) * data[o + 3] + (cy - y) * data[o + 4] + (cz - z) * data[o + 5];
-      if (facing < 0) continue;
+      // Same look as the shader: hide the far side, light up the silhouette edge.
+      const toCamera = Math.hypot(cx - x, cy - y, cz - z);
+      const facing = ((cx - x) * data[o + 3] + (cy - y) * data[o + 4] + (cz - z) * data[o + 5]) / toCamera;
+      const smooth = (e0, e1, v) => { const t = Math.min(1, Math.max(0, (v - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+      const edge = smooth(0.55, 0.95, 1 - Math.abs(facing));
+      const visible = Math.max(smooth(-0.15, 0.2, facing), 0.9 * edge);
+      if (visible <= 0) continue;
       const [across, depth] = view === "back" ? [x, cz - z] : [z, x - cx];
       const u = Math.round(W / 2 + across * f / depth);
       const v = Math.round(H / 2 - (y - 0.95) * f / depth);
       for (const [du, dv] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
         const px = u + du, py = v + dv;
-        if (px >= 0 && px < W && py >= 0 && py < H) image[py * W + px] += tone * 0.35;
+        if (px >= 0 && px < W && py >= 0 && py < H) image[py * W + px] += visible * (0.5 + 0.5 * tone) * (1 + 0.9 * edge) * 0.3;
       }
     }
     const bytes = Buffer.alloc(W * H);
