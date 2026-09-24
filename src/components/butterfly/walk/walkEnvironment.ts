@@ -58,7 +58,7 @@ function sampleDust(count: number) {
   return { positions, seeds, trail };
 }
 
-const STAR_COUNT = 900;
+const STAR_COUNT = 1_600;
 const STAR_RADIUS = 60;
 
 function sampleStars(count: number) {
@@ -107,11 +107,11 @@ export function createWalkEnvironment(
         vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
         gl_Position = projectionMatrix * viewPosition;
         float distanceToCamera = -viewPosition.z;
-        gl_PointSize = mix(0.8, 1.7, aSeed) * uPixelRatio * clamp(6.0 / max(distanceToCamera, 0.5), 0.35, 2.4);
+        gl_PointSize = mix(1.0, 2.0, aSeed) * uPixelRatio * clamp(6.0 / max(distanceToCamera, 0.5), 0.35, 2.4);
         float shimmer = 0.82 + 0.18 * sin(uTime * 0.9 + aSeed * 31.0);
         // The walking path itself reads slightly brighter than the verges.
-        float path = 1.0 + 0.6 * (1.0 - smoothstep(0.15, 0.45, abs(position.x)));
-        vAlpha = uReveal * mix(0.3, 0.78, aSeed) * shimmer * path
+        float path = 1.0 + 1.4 * (1.0 - smoothstep(0.2, 0.7, abs(position.x)));
+        vAlpha = uReveal * mix(0.45, 0.95, aSeed) * shimmer * path
           * (1.0 - smoothstep(18.0, 48.0, distanceToCamera));
       }
     `,
