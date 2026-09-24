@@ -40,7 +40,8 @@ const toneFor = (meshName) => {
 // Mid-stride pose, as rotations about world axes (the model faces +Z, its left is +X).
 // Arms come down from the T-pose, left leg forward, right heel lifting, arms in counter-swing.
 const POSE = [
-  ["LeftArm", "z", -1.4], ["RightArm", "z", 1.4],
+  // Arms hang with a slight gap from the torso, so the upper arm keeps its outline.
+  ["LeftArm", "z", -1.3], ["RightArm", "z", 1.3],
   ["LeftArm", "x", 0.28], ["RightArm", "x", -0.3],
   ["LeftForeArm", "x", -0.18], ["RightForeArm", "x", -0.42],
   ["LeftUpLeg", "x", -0.26], ["LeftLeg", "x", 0.08], ["LeftFoot", "x", -0.08],
@@ -52,10 +53,15 @@ const file = readFileSync(input);
 const root = new FBXLoader().parse(file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength), "");
 root.updateMatrixWorld(true);
 
+// Mixamo nests helper copies of each bone under the bone of the same name, and
+// some clothing is bound to those copies. Rotate only the outermost copy; the
+// nested ones follow it. Rotating every copy would compound the turn.
+const boneName = (object) => object.name.replace(/^mixamorig\d*/, "");
 const bonesByName = new Map();
 root.traverse((object) => {
   if (!object.isBone) return;
-  const name = object.name.replace(/^mixamorig\d*/, "");
+  const name = boneName(object);
+  if (object.parent?.isBone && boneName(object.parent) === name) return;
   if (!bonesByName.has(name)) bonesByName.set(name, []);
   bonesByName.get(name).push(object);
 });
