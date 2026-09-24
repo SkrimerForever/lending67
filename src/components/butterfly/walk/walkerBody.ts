@@ -77,9 +77,9 @@ const GROUPS: Record<Group, Primitive[]> = {
     ]),
     ...wear(M.jacket, [
       // Jacket body: hem over the hips, slight waist, chest widening to the armpits.
-      cone(0, [0, 0.9, 0.005], [0, 1.02, 0], 0.15, 0.132, 0.76),
-      cone(1, [0, 1.0, 0], [0, 1.16, 0], 0.13, 0.13, 0.66),
-      cone(1, [0, 1.16, 0], [0, 1.29, 0.005], 0.134, 0.152, 0.6),
+      cone(0, [0, 0.9, 0.005], [0, 1.02, 0], 0.15, 0.132, 0.82),
+      cone(1, [0, 1.0, 0], [0, 1.16, 0], 0.13, 0.13, 0.8),
+      cone(1, [0, 1.16, 0], [0, 1.29, 0.005], 0.134, 0.152, 0.78),
       // Shoulders slope down from the neck (trapezius) instead of a flat bar.
       cone(1, [-0.05, 1.46, 0.015], [-0.178, 1.405, 0.01], 0.046, 0.058, 0.9),
       cone(1, [0.05, 1.46, 0.015], [0.178, 1.405, 0.01], 0.046, 0.058, 0.9),
@@ -87,13 +87,15 @@ const GROUPS: Record<Group, Primitive[]> = {
       cone(1, [0, 1.45, 0.02], [0, 1.51, 0.012], 0.066, 0.058, 0.9),
     ]),
     ...wear(M.skin, [
-      cone(2, [0, 1.43, 0.015], [0, 1.63, 0], 0.048, 0.043),
-      ellipsoid(3, [0, 1.735, 0.005], [0.074, 0.1, 0.088]),
+      // A short, solid neck, a head with a jaw, not a ball on a stick.
+      cone(2, [0, 1.43, 0.018], [0, 1.62, 0.008], 0.058, 0.054),
+      ellipsoid(3, [0, 1.73, 0.005], [0.08, 0.108, 0.096]),
+      ellipsoid(3, [0, 1.66, -0.022], [0.064, 0.052, 0.066]),
     ]),
     ...wear(M.hair, [
       // Short hair: a cap over the crown and down the back of the head.
-      ellipsoid(3, [0, 1.775, 0.018], [0.08, 0.068, 0.086]),
-      ellipsoid(3, [0, 1.725, 0.05], [0.074, 0.075, 0.056]),
+      ellipsoid(3, [0, 1.772, 0.016], [0.087, 0.074, 0.093]),
+      ellipsoid(3, [0, 1.72, 0.052], [0.08, 0.08, 0.06]),
     ]),
   ],
   armL: arm(-1, 4),

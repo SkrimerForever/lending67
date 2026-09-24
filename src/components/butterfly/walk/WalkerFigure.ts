@@ -119,12 +119,12 @@ const vertexShader = /* glsl */ `
       * clamp(4.5 / max(distanceToCamera, 0.3), 0.6, 3.2);
     float shimmer = 0.88 + 0.12 * sin(uTime * 1.7 + aSeed * 40.0);
     // Tone per material (skin, hair, jacket, trousers, shoes) so clothing
-    // edges read: brightest skin, mid jacket, darker trousers, hair and shoes.
+    // edges read: bright skin and jacket, clearly darker trousers, dark hair and shoes.
     float tone = aMaterial < 0.5 ? 1.0
-      : aMaterial < 1.5 ? 0.6
-      : aMaterial < 2.5 ? 0.88
-      : aMaterial < 3.5 ? 0.68
-      : 0.52;
+      : aMaterial < 1.5 ? 0.35
+      : aMaterial < 2.5 ? 0.95
+      : aMaterial < 3.5 ? 0.42
+      : 0.25;
     vLight = tone * mix(0.5, 1.0, aShell) * mix(0.8, 1.0, smoothstep(0.4, 1.7, p.y)) * shimmer;
     vAlpha = uReveal * smoothstep(0.18, 0.55, distanceToCamera)
       * mix(0.35, 1.0, aShell) * mix(0.6, 0.95, aSeed);

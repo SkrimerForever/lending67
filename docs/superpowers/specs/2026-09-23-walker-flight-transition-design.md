@@ -154,5 +154,6 @@ User feedback: the ground reads as a highway; the walker reads as circles and bo
 
 ## Revision 4 — clothes and hair (2026-09-24)
 
-- Each body primitive carries a material: skin, hair, jacket, trousers, shoes. A point takes the material of its nearest primitive; the shader tones them (skin 1.0, jacket 0.88, trousers 0.68, hair 0.6, shoes 0.52) so clothing edges read.
+- Each body primitive carries a material: skin, hair, jacket, trousers, shoes. A point takes the material of its nearest primitive; the shader tones them (skin 1.0, jacket 0.95, trousers 0.42, hair 0.35, shoes 0.25) — the contrast must be strong because dense additive points otherwise saturate into one white mass.
 - Jacket: body over the hips with a collar at the neck; fuller sleeves with cuffs. Trousers: straight legs to the ankle. Shoes: larger, darker feet. Hair: a short cap over the crown and back of the head with slight fuzz.
+- Head and torso: a short solid neck (`r 0.058`), a larger head with a jaw instead of a ball on a stick, and deeper torso cross-sections (depth factors `0.78–0.82`) so the side view is not a plank.
