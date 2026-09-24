@@ -24,6 +24,7 @@ const vertexShader = /* glsl */ `
   attribute float aWeight;
   attribute float aSeed;
   attribute float aShell;
+  attribute float aMaterial;
   varying float vAlpha;
   varying float vLight;
 
@@ -117,7 +118,14 @@ const vertexShader = /* glsl */ `
     gl_PointSize = mix(1.0, 1.9, aSeed) * uPixelRatio
       * clamp(4.5 / max(distanceToCamera, 0.3), 0.6, 3.2);
     float shimmer = 0.88 + 0.12 * sin(uTime * 1.7 + aSeed * 40.0);
-    vLight = mix(0.5, 1.0, aShell) * mix(0.78, 1.0, smoothstep(0.4, 1.7, p.y)) * shimmer;
+    // Tone per material (skin, hair, jacket, trousers, shoes) so clothing
+    // edges read: brightest skin, mid jacket, darker trousers, hair and shoes.
+    float tone = aMaterial < 0.5 ? 1.0
+      : aMaterial < 1.5 ? 0.6
+      : aMaterial < 2.5 ? 0.88
+      : aMaterial < 3.5 ? 0.68
+      : 0.52;
+    vLight = tone * mix(0.5, 1.0, aShell) * mix(0.8, 1.0, smoothstep(0.4, 1.7, p.y)) * shimmer;
     vAlpha = uReveal * smoothstep(0.18, 0.55, distanceToCamera)
       * mix(0.35, 1.0, aShell) * mix(0.6, 0.95, aSeed);
   }
@@ -142,6 +150,7 @@ export function createWalkerFigure(count: number, pixelRatio: number): WalkerFig
   geometry.setAttribute("aWeight", new THREE.BufferAttribute(body.weight, 1));
   geometry.setAttribute("aSeed", new THREE.BufferAttribute(body.seed, 1));
   geometry.setAttribute("aShell", new THREE.BufferAttribute(body.shell, 1));
+  geometry.setAttribute("aMaterial", new THREE.BufferAttribute(body.material, 1));
   const uniforms = {
     uStride: { value: 0 },
     uTime: { value: 0 },

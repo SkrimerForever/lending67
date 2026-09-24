@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { sampleWalkerBody, walkerBodyDistance, WALKER_BONE_COUNT } from "./walkerBody.ts";
+import { sampleWalkerBody, walkerBodyDistance, WALKER_BONE_COUNT, WALKER_MATERIALS } from "./walkerBody.ts";
 
 function seeded(seed: number) {
   let state = seed;
@@ -32,7 +32,8 @@ test("every bone receives points and weights stay in range", () => {
 test("points lie inside or on the one body surface", () => {
   for (let i = 0; i < 6000; i += 1) {
     const d = walkerBodyDistance(body.rest[i * 3], body.rest[i * 3 + 1], body.rest[i * 3 + 2]);
-    assert.ok(d <= 0.0041, `point ${i} is ${d} outside`);
+    // Shell band (0.004) plus up to 0.006 of hair fuzz.
+    assert.ok(d <= 0.0101, `point ${i} is ${d} outside`);
   }
 });
 
@@ -63,4 +64,14 @@ test("the figure is about 1.85 m tall and stands on the ground", () => {
 test("hands never merge with thighs", () => {
   assert.ok(walkerBodyDistance(0.2, 0.84, 0) > 0, "gap right");
   assert.ok(walkerBodyDistance(-0.2, 0.84, 0) > 0, "gap left");
+});
+
+test("the walker wears clothes and has hair", () => {
+  const counts = new Map<number, number>();
+  body.material.forEach((material) => counts.set(material, (counts.get(material) ?? 0) + 1));
+  for (const [name, code] of Object.entries(WALKER_MATERIALS)) {
+    assert.ok((counts.get(code) ?? 0) > 30, `${name} has ${counts.get(code) ?? 0} points`);
+  }
+  // Clothing covers most of the body; skin is only the face, neck and hands.
+  assert.ok((counts.get(WALKER_MATERIALS.skin) ?? 0) / 6000 < 0.2);
 });

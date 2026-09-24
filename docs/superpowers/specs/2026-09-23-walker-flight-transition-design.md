@@ -151,3 +151,8 @@ User feedback: the ground reads as a highway; the walker reads as circles and bo
 
 - The whole walk stage is compressed: dive `1.90–2.00`, shoulder pass `2.10`, light `2.08–2.14`, whiteout `2.14–2.16`, case reveal `2.16–2.19`, end `2.22`. Scroll range `2.22`: `.study-shell` `2195svh`, `timelineClock` duration `206.2`.
 - Shorter path: the light stands at `z = -14` (was `-40`); the ground runs `z ∈ [-16, 12]` and ends under the light; dust spans `z ∈ [-18, 16]`. Ground counts HIGH 6 000 / BALANCED 4 000 / LOW 2 200.
+
+## Revision 4 — clothes and hair (2026-09-24)
+
+- Each body primitive carries a material: skin, hair, jacket, trousers, shoes. A point takes the material of its nearest primitive; the shader tones them (skin 1.0, jacket 0.88, trousers 0.68, hair 0.6, shoes 0.52) so clothing edges read.
+- Jacket: body over the hips with a collar at the neck; fuller sleeves with cuffs. Trousers: straight legs to the ankle. Shoes: larger, darker feet. Hair: a short cap over the crown and back of the head with slight fuzz.

@@ -1,9 +1,13 @@
 type Vec3 = [number, number, number];
 
-type Primitive =
+// What a point is made of; the shader gives each material its own tone.
+export const WALKER_MATERIALS = { skin: 0, hair: 1, jacket: 2, trousers: 3, shoes: 4 } as const;
+
+type Shape =
   | { bone: number; kind: "cone"; a: Vec3; b: Vec3; ra: number; rb: number; depth: number }
   | { bone: number; kind: "sphere"; c: Vec3; r: number }
   | { bone: number; kind: "ellipsoid"; c: Vec3; r: Vec3 };
+type Primitive = Shape & { material: number };
 
 type Group = "torso" | "armL" | "armR" | "legL" | "legR";
 
@@ -34,39 +38,63 @@ export const WALKER_REST_JOINTS: ReadonlyArray<Vec3> = [
   ...legJoints(1),
 ];
 
-const cone = (bone: number, a: Vec3, b: Vec3, ra: number, rb: number, depth = 1): Primitive =>
+const M = WALKER_MATERIALS;
+const cone = (bone: number, a: Vec3, b: Vec3, ra: number, rb: number, depth = 1): Shape =>
   ({ bone, kind: "cone", a, b, ra, rb, depth });
-const sphere = (bone: number, c: Vec3, r: number): Primitive => ({ bone, kind: "sphere", c, r });
-const ellipsoid = (bone: number, c: Vec3, r: Vec3): Primitive => ({ bone, kind: "ellipsoid", c, r });
+const sphere = (bone: number, c: Vec3, r: number): Shape => ({ bone, kind: "sphere", c, r });
+const ellipsoid = (bone: number, c: Vec3, r: Vec3): Shape => ({ bone, kind: "ellipsoid", c, r });
+const wear = (material: number, shapes: Shape[]): Primitive[] => shapes.map((shape) => ({ ...shape, material }));
 
 const arm = (s: number, offset: number): Primitive[] => [
-  sphere(offset, [s * 0.195, 1.405, 0], 0.062),
-  cone(offset, [s * 0.2, 1.39, 0], [s * 0.225, 1.15, 0], 0.052, 0.043),
-  cone(offset + 1, [s * 0.225, 1.15, 0], [s * 0.245, 0.915, -0.01], 0.043, 0.033),
-  ellipsoid(offset + 2, [s * 0.248, 0.84, -0.012], [0.028, 0.07, 0.044]),
+  // Jacket sleeve, slightly fuller than the arm, with a cuff at the wrist.
+  ...wear(M.jacket, [
+    sphere(offset, [s * 0.195, 1.405, 0], 0.066),
+    cone(offset, [s * 0.2, 1.39, 0], [s * 0.225, 1.15, 0], 0.058, 0.05),
+    cone(offset + 1, [s * 0.225, 1.15, 0], [s * 0.243, 0.935, -0.008], 0.05, 0.042),
+    cone(offset + 1, [s * 0.243, 0.95, -0.008], [s * 0.245, 0.922, -0.01], 0.046, 0.046),
+  ]),
+  ...wear(M.skin, [ellipsoid(offset + 2, [s * 0.248, 0.84, -0.012], [0.028, 0.07, 0.044])]),
 ];
 
 const leg = (s: number, offset: number): Primitive[] => [
-  cone(offset, [s * 0.095, 0.9, 0], [s * 0.105, 0.48, 0], 0.09, 0.058),
-  cone(offset + 1, [s * 0.105, 0.48, 0], [s * 0.11, 0.11, 0], 0.056, 0.044),
-  sphere(offset + 1, [s * 0.107, 0.34, 0.03], 0.052),
-  cone(offset + 2, [s * 0.11, 0.045, 0.035], [s * 0.115, 0.035, -0.15], 0.044, 0.036),
+  // Straight trousers down to the ankle, then shoes.
+  ...wear(M.trousers, [
+    cone(offset, [s * 0.095, 0.9, 0], [s * 0.105, 0.48, 0], 0.092, 0.062),
+    cone(offset + 1, [s * 0.105, 0.48, 0], [s * 0.11, 0.1, 0], 0.06, 0.052),
+    sphere(offset + 1, [s * 0.107, 0.34, 0.028], 0.054),
+  ]),
+  ...wear(M.shoes, [
+    cone(offset + 2, [s * 0.11, 0.05, 0.045], [s * 0.115, 0.042, -0.165], 0.05, 0.043),
+  ]),
 ];
 
 // Back is +Z (the walker faces -Z).
 const GROUPS: Record<Group, Primitive[]> = {
   torso: [
-    // Hips, then a slight waist, then a chest that widens toward the armpits.
-    cone(0, [0, 0.9, 0], [0, 1.02, 0], 0.135, 0.125, 0.75),
-    sphere(0, [-0.068, 0.88, 0.045], 0.088),
-    sphere(0, [0.068, 0.88, 0.045], 0.088),
-    cone(1, [0, 1.0, 0], [0, 1.16, 0], 0.125, 0.125, 0.66),
-    cone(1, [0, 1.16, 0], [0, 1.29, 0.005], 0.13, 0.148, 0.6),
-    // Shoulders slope down from the neck (trapezius) instead of a flat bar.
-    cone(1, [-0.05, 1.46, 0.015], [-0.175, 1.405, 0.01], 0.042, 0.055, 0.9),
-    cone(1, [0.05, 1.46, 0.015], [0.175, 1.405, 0.01], 0.042, 0.055, 0.9),
-    cone(2, [0, 1.43, 0.015], [0, 1.63, 0], 0.048, 0.043),
-    ellipsoid(3, [0, 1.735, 0.005], [0.074, 0.1, 0.088]),
+    ...wear(M.trousers, [
+      sphere(0, [-0.068, 0.88, 0.045], 0.088),
+      sphere(0, [0.068, 0.88, 0.045], 0.088),
+    ]),
+    ...wear(M.jacket, [
+      // Jacket body: hem over the hips, slight waist, chest widening to the armpits.
+      cone(0, [0, 0.9, 0.005], [0, 1.02, 0], 0.15, 0.132, 0.76),
+      cone(1, [0, 1.0, 0], [0, 1.16, 0], 0.13, 0.13, 0.66),
+      cone(1, [0, 1.16, 0], [0, 1.29, 0.005], 0.134, 0.152, 0.6),
+      // Shoulders slope down from the neck (trapezius) instead of a flat bar.
+      cone(1, [-0.05, 1.46, 0.015], [-0.178, 1.405, 0.01], 0.046, 0.058, 0.9),
+      cone(1, [0.05, 1.46, 0.015], [0.178, 1.405, 0.01], 0.046, 0.058, 0.9),
+      // Collar around the base of the neck.
+      cone(1, [0, 1.45, 0.02], [0, 1.51, 0.012], 0.066, 0.058, 0.9),
+    ]),
+    ...wear(M.skin, [
+      cone(2, [0, 1.43, 0.015], [0, 1.63, 0], 0.048, 0.043),
+      ellipsoid(3, [0, 1.735, 0.005], [0.074, 0.1, 0.088]),
+    ]),
+    ...wear(M.hair, [
+      // Short hair: a cap over the crown and down the back of the head.
+      ellipsoid(3, [0, 1.775, 0.018], [0.08, 0.068, 0.086]),
+      ellipsoid(3, [0, 1.725, 0.05], [0.074, 0.075, 0.056]),
+    ]),
   ],
   armL: arm(-1, 4),
   armR: arm(1, 7),
@@ -147,10 +175,17 @@ const SHELL_INNER = -0.022;
 const SHELL_OUTER = 0.004;
 const FILL_CHANCE = 0.12;
 
-function assignBones(x: number, y: number, z: number): [number, number, number] {
+function assignBones(x: number, y: number, z: number): [number, number, number, number] {
   const perBone = new Array(WALKER_BONE_COUNT).fill(Infinity);
+  let material: number = M.skin;
+  let nearest = Infinity;
   for (const primitive of ALL_PRIMITIVES) {
-    perBone[primitive.bone] = Math.min(perBone[primitive.bone], primitiveDistance(primitive, x, y, z));
+    const distance = primitiveDistance(primitive, x, y, z);
+    perBone[primitive.bone] = Math.min(perBone[primitive.bone], distance);
+    if (distance < nearest) {
+      nearest = distance;
+      material = primitive.material;
+    }
   }
   let first = 0;
   for (let bone = 1; bone < WALKER_BONE_COUNT; bone += 1) {
@@ -160,9 +195,9 @@ function assignBones(x: number, y: number, z: number): [number, number, number] 
   for (const bone of ADJACENT[first]) {
     if (second === first || perBone[bone] < perBone[second]) second = bone;
   }
-  if (second === first) return [first, first, 0];
+  if (second === first) return [first, first, 0, material];
   const weight = 0.5 * Math.exp(-Math.max(0, perBone[second] - perBone[first]) / 0.02);
-  return [first, second, weight];
+  return [first, second, weight, material];
 }
 
 export function sampleWalkerBody(count: number, random: () => number = Math.random) {
@@ -171,6 +206,7 @@ export function sampleWalkerBody(count: number, random: () => number = Math.rand
   const weight = new Float32Array(count);
   const seed = new Float32Array(count);
   const shell = new Float32Array(count);
+  const material = new Float32Array(count);
   let written = 0;
   let attempts = 0;
   while (written < count && attempts < count * 400) {
@@ -182,17 +218,20 @@ export function sampleWalkerBody(count: number, random: () => number = Math.rand
     if (d > SHELL_OUTER) continue;
     const onShell = d >= SHELL_INNER;
     if (!onShell && random() > FILL_CHANCE) continue;
-    const [first, second, blend] = assignBones(x, y, z);
-    rest[written * 3] = x;
-    rest[written * 3 + 1] = y;
-    rest[written * 3 + 2] = z;
+    const [first, second, blend, surface] = assignBones(x, y, z);
+    // Hair points get a little fuzz so the head does not read as a smooth ball.
+    const fuzz = surface === M.hair && onShell ? 0.006 : 0;
+    rest[written * 3] = x + (random() - 0.5) * fuzz;
+    rest[written * 3 + 1] = y + random() * fuzz;
+    rest[written * 3 + 2] = z + (random() - 0.5) * fuzz;
     bones[written * 2] = first;
     bones[written * 2 + 1] = second;
     weight[written] = blend;
     seed[written] = random();
     shell[written] = onShell ? 1 : 0;
+    material[written] = surface;
     written += 1;
   }
   if (written < count) throw new Error(`walker sampling produced ${written} of ${count} points`);
-  return { rest, bones, weight, seed, shell };
+  return { rest, bones, weight, seed, shell, material };
 }
