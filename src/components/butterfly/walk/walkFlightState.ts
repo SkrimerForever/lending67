@@ -25,6 +25,10 @@ export const WALK_START = 1.9;
 export const WALK_END = 2.22;
 export const LIGHT_Y = 1.7;
 export const LIGHT_Z = -14;
+// The light is the case 02 screen seen from afar. The flight stops exactly where
+// a PORTAL_HEIGHT-tall screen fills the 42° camera, so case 02 lands full-screen.
+export const PORTAL_HEIGHT = 1.8;
+export const PORTAL_DISTANCE = PORTAL_HEIGHT / 2 / Math.tan((21 * Math.PI) / 180);
 
 // The walker holds one mid-stride pose (left leg forward, right heel lifting)
 // at the depth where the camera passes his left shoulder.
@@ -43,7 +47,7 @@ const DESKTOP_KNOTS: Vec3[] = [
   [-0.36, 1.86, -0.9],
   [-0.12, 1.74, -4],
   [0, LIGHT_Y, -9],
-  [0, LIGHT_Y, LIGHT_Z + 1.2],
+  [0, LIGHT_Y, LIGHT_Z + PORTAL_DISTANCE],
 ];
 
 const NARROW_KNOTS: Vec3[] = [
@@ -54,7 +58,7 @@ const NARROW_KNOTS: Vec3[] = [
   [-0.55, 2.0, -0.9],
   [-0.2, 1.76, -4],
   [0, LIGHT_Y, -9],
-  [0, LIGHT_Y, LIGHT_Z + 1.2],
+  [0, LIGHT_Y, LIGHT_Z + PORTAL_DISTANCE],
 ];
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));

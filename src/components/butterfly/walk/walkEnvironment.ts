@@ -1,10 +1,11 @@
 import * as THREE from "three";
-import { LIGHT_Y, LIGHT_Z, type WalkFlightState } from "./walkFlightState";
+import { LIGHT_Y, LIGHT_Z, PORTAL_HEIGHT, type WalkFlightState } from "./walkFlightState";
 
 export type WalkEnvironment = {
   group: THREE.Group;
   update(state: WalkFlightState, time: number): void;
   setPixelRatio(value: number): void;
+  setAspect(aspect: number): void;
   dispose(): void;
 };
 
@@ -211,19 +212,23 @@ export function createWalkEnvironment(
   group.add(starPoints);
 
   const lightUniforms = { uReveal: { value: 0 } };
-  const panelGeometry = new THREE.PlaneGeometry(3.2, 1.8);
+  // The panel is the case 02 screen: it takes the viewport's aspect so the DOM
+  // case can be projected onto it and land full-screen at the end of the flight.
+  const panelUniforms = { uReveal: lightUniforms.uReveal, uSize: { value: new THREE.Vector2(3.2, PORTAL_HEIGHT) } };
+  const panelGeometry = new THREE.PlaneGeometry(1, 1);
   const panelMaterial = new THREE.ShaderMaterial({
-    uniforms: lightUniforms,
+    uniforms: panelUniforms,
     vertexShader: /* glsl */ `
       varying vec2 vUv;
       void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
     `,
     fragmentShader: /* glsl */ `
       uniform float uReveal;
+      uniform vec2 uSize;
       varying vec2 vUv;
       void main() {
-        vec2 q = abs(vUv - 0.5) * vec2(3.2, 1.8);
-        vec2 d = q - vec2(1.52, 0.82);
+        vec2 q = abs(vUv - 0.5) * uSize;
+        vec2 d = q - (uSize * 0.5 - 0.08);
         float edge = length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
         float body = 1.0 - smoothstep(-0.06, 0.08, edge);
         gl_FragColor = vec4(vec3(0.804, 0.855, 0.886), body * uReveal);
@@ -235,6 +240,7 @@ export function createWalkEnvironment(
   });
   const panel = new THREE.Mesh(panelGeometry, panelMaterial);
   panel.position.set(0, LIGHT_Y, LIGHT_Z);
+  panel.scale.set(3.2, PORTAL_HEIGHT, 1);
   group.add(panel);
 
   const haloGeometry = new THREE.PlaneGeometry(12, 7);
@@ -281,6 +287,12 @@ export function createWalkEnvironment(
       groundUniforms.uPixelRatio.value = value;
       dustUniforms.uPixelRatio.value = value;
       starUniforms.uPixelRatio.value = value;
+    },
+    setAspect(aspect) {
+      const width = PORTAL_HEIGHT * aspect;
+      panel.scale.x = width;
+      panelUniforms.uSize.value.x = width;
+      halo.scale.x = width / 3.2;
     },
     dispose() {
       groundGeometry.dispose(); groundMaterial.dispose();

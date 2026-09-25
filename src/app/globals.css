@@ -966,6 +966,7 @@ button, input { font: inherit; }
   background: #080a0b;
   opacity: 0;
   pointer-events: none;
+  transform-origin: 0 0;
   will-change: opacity, transform;
 }
 .case-two::before {
