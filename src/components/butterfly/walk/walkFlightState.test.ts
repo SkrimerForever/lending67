@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getDawnState, getWalkFlightState, LIGHT_Z, PORTAL_DISTANCE, WALK_END, WALK_START } from "./walkFlightState.ts";
+import { CASE_THREE_SCREEN, getButterflyPassState, getWalkFlightState, LIGHT_Z, PORTAL_DISTANCE, WALK_END, WALK_START } from "./walkFlightState.ts";
 
 const desktop = { reducedMotion: false, narrow: false };
 const narrow = { reducedMotion: false, narrow: true };
@@ -106,35 +106,51 @@ test("reduced motion shows three stable states", () => {
   assert.equal(first.dustStreak, 0);
 });
 
-test("dawn starts and ends exactly on the full-screen case pose", () => {
+const distance = (a: number[], b: number[]) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+test("the butterfly pass starts on case 02 and ends full-screen on case 03", () => {
   const end = getWalkFlightState(WALK_END, desktop).cameraPosition;
-  const start = getDawnState(0.0001, desktop).cameraPosition;
-  assert.ok(Math.hypot(start[0] - end[0], start[1] - end[1], start[2] - end[2]) < 0.01);
-  assert.deepEqual(getDawnState(1, desktop).cameraPosition, end);
-  assert.equal(getDawnState(0, desktop).active, false);
+  assert.ok(distance(getButterflyPassState(0.0001, desktop).cameraPosition, end) < 0.01);
+  assert.equal(getButterflyPassState(0, desktop).active, false);
+  const last = getButterflyPassState(1, desktop);
+  assert.deepEqual(last.cameraPosition, [CASE_THREE_SCREEN[0], CASE_THREE_SCREEN[1], CASE_THREE_SCREEN[2] + PORTAL_DISTANCE]);
+  assert.equal(last.caseThreeReveal, 1);
 });
 
-test("dawn pulls back behind the walker before the colour comes", () => {
-  const wide = getDawnState(0.28, desktop);
-  assert.ok(wide.cameraPosition[2] > 2, "camera is back in the field, behind the walker");
-  assert.equal(wide.dawn, 0);
-  assert.equal(wide.screenMix, 0);
-  const risen = getDawnState(0.72, desktop);
-  assert.equal(risen.dawn, 1);
-  assert.equal(risen.screenMix, 1);
+test("the case 02 screen becomes the butterfly before it flies", () => {
+  const formed = getButterflyPassState(0.3, desktop);
+  assert.equal(formed.screenDissolve, 1);
+  assert.equal(formed.gather, 1);
+  assert.equal(formed.land, 0);
+  assert.equal(formed.caseThreeReveal, 0);
 });
 
-test("dawn camera travel is continuous", () => {
-  let previous = getDawnState(0.001, desktop).cameraPosition;
+test("colour arrives only as a faint warmth on the butterfly", () => {
+  assert.equal(getButterflyPassState(0.2, desktop).warmth, 0);
+  const flying = getButterflyPassState(0.55, desktop);
+  assert.ok(flying.warmth > 0.9 && flying.warmth <= 1);
+});
+
+test("the butterfly reaches the case 03 screen and spreads over it before the fly-in", () => {
+  const landed = getButterflyPassState(0.84, desktop);
+  assert.equal(landed.land, 1);
+  assert.ok(distance(landed.butterflyPosition, CASE_THREE_SCREEN) < 0.5);
+  assert.equal(getButterflyPassState(0.79, desktop).caseThreeReveal, 0);
+});
+
+test("butterfly pass camera travel is continuous", () => {
+  let previous = getButterflyPassState(0.001, desktop);
   for (let progress = 0.002; progress <= 1; progress += 0.001) {
-    const next = getDawnState(progress, desktop).cameraPosition;
-    assert.ok(Math.hypot(next[0] - previous[0], next[1] - previous[1], next[2] - previous[2]) < 0.2);
+    const next = getButterflyPassState(progress, desktop);
+    assert.ok(distance(next.cameraPosition, previous.cameraPosition) < 0.2, `camera jumps at ${progress}`);
+    assert.ok(distance(next.cameraTarget, previous.cameraTarget) < 0.3, `view jumps at ${progress}`);
     previous = next;
   }
 });
 
-test("reduced motion keeps the camera still through dawn", () => {
-  const reducedDawn = { reducedMotion: true, narrow: false };
-  assert.deepEqual(getDawnState(0.3, reducedDawn).cameraPosition, getDawnState(0.9, reducedDawn).cameraPosition);
-  assert.equal(getDawnState(0.9, reducedDawn).screenMix, 1);
+test("reduced motion keeps the camera still and simply crossfades the cases", () => {
+  const reducedPass = { reducedMotion: true, narrow: false };
+  assert.deepEqual(getButterflyPassState(0.3, reducedPass).cameraPosition, getButterflyPassState(0.9, reducedPass).cameraPosition);
+  assert.equal(getButterflyPassState(0.95, reducedPass).caseThreeReveal, 1);
+  assert.equal(getButterflyPassState(0.5, reducedPass).gather, 0);
 });

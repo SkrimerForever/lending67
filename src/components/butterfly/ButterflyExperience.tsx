@@ -12,7 +12,7 @@ import { getPerformanceProfile, type PerformanceProfile } from "./performance-pr
 import { SecondCaseStub } from "./SecondCaseStub";
 import { ThirdCase } from "./ThirdCase";
 import { createWalkScene } from "./walk/createWalkScene";
-import { getDawnState, getWalkFlightState } from "./walk/walkFlightState";
+import { getButterflyPassState, getWalkFlightState } from "./walk/walkFlightState";
 
 const FLOW_PROMPT = "Получить сообщение → обработать AI → отправить в Telegram";
 
@@ -422,8 +422,7 @@ export function ButterflyExperience() {
   const walkVeilRef = useRef<HTMLDivElement>(null);
   const caseTwoRef = useRef<HTMLElement>(null);
   const caseThreeRef = useRef<HTMLElement>(null);
-  const dawnSkyRef = useRef<HTMLDivElement>(null);
-  const dawnRef = useRef({ value: 0 });
+  const passRef = useRef({ value: 0 });
   const uniformsRef = useRef<Uniforms | null>(null);
   const progressRef = useRef({ value: 0 });
   const flightRef = useRef({ value: 0 });
@@ -560,8 +559,8 @@ export function ButterflyExperience() {
       .fromTo(select(".moex-trace-card"), { opacity: 0, x: 13 }, { opacity: 1, x: 0, duration: 0.4, stagger: 0.16, ease: "power2.out" }, 5.03)
       .to(select(".moex-demo-cursor"), { opacity: 0, duration: 0.3 }, 5.45);
 
-    // Dawn: from case 02 to case 03. The render loop reads this progress and
-    // drives the camera, the sky and both case screens from it.
+    // Case 02 → case 03 with the butterfly. The render loop reads this
+    // progress and drives the camera, the butterfly and both case screens.
     const thirdCaseTimeline = gsap.timeline({
       scrollTrigger: {
         trigger: shell,
@@ -571,7 +570,7 @@ export function ButterflyExperience() {
         invalidateOnRefresh: true,
       },
     });
-    thirdCaseTimeline.to(dawnRef.current, { value: 1, duration: 1, ease: "none" });
+    thirdCaseTimeline.to(passRef.current, { value: 1, duration: 1, ease: "none" });
 
     const context = gsap.context(() => {
       const timeline = gsap.timeline({
@@ -1738,36 +1737,30 @@ export function ButterflyExperience() {
       if (walkVeilRef.current) {
         walkVeilRef.current.style.opacity = String(walkState.whiteout * (1 - walkState.caseReveal) * 0.12);
       }
-      const dawnProgress = dawnRef.current.value;
-      const dawnState = getDawnState(dawnProgress, {
+      const passProgress = passRef.current.value;
+      const passState = getButterflyPassState(passProgress, {
         reducedMotion: reduceMotion.matches,
         narrow: camera.aspect < 0.9,
       });
-      walkScene.update(walkState, sceneTime, camera, dawnState);
-      // The case screens ride the light panel whenever the camera is away from
-      // it: flying in to case 02, and pulling back into the field at dawn.
-      const inPortal = walkState.active && !reduceMotion.matches && walkState.caseReveal < 1;
-      const inDawn = dawnState.active && dawnProgress < 1;
-      const portal = inPortal || inDawn ? walkScene.portalTransform(camera, stageSize.width, stageSize.height) : "none";
+      walkScene.update(walkState, sceneTime, camera, passState);
+      // The case screens ride their light panels whenever the camera is away
+      // from them: flying in to case 02, backing off it, flying in to case 03.
+      const flying = !reduceMotion.matches;
+      const inPortal = walkState.active && flying && walkState.caseReveal < 1;
+      const inPass = passState.active && passProgress < 1;
+      const project = (screen: "caseTwo" | "caseThree") =>
+        walkScene.portalTransform(camera, stageSize.width, stageSize.height, screen);
       if (caseTwoRef.current) {
         let opacity = inPortal ? walkState.lightReveal : walkState.caseReveal;
-        if (inDawn) opacity = 1 - dawnState.screenMix;
-        else if (dawnProgress >= 1) opacity = 0;
+        if (inPass) opacity = 1 - passState.screenDissolve;
+        else if (passProgress >= 1) opacity = 0;
         caseTwoRef.current.style.opacity = String(opacity);
-        caseTwoRef.current.style.transform = inPortal || inDawn ? portal : "none";
+        caseTwoRef.current.style.transform = flying && (inPortal || (inPass && opacity > 0)) ? project("caseTwo") : "none";
       }
       if (caseThreeRef.current) {
-        caseThreeRef.current.style.opacity = String(inDawn ? dawnState.screenMix : dawnProgress >= 1 ? 1 : 0);
-        caseThreeRef.current.style.transform = inDawn ? portal : "none";
-      }
-      if (dawnSkyRef.current) {
-        // The sunrise glows from behind the screen, wherever it is in frame.
-        dawnSkyRef.current.style.opacity = String(inDawn ? dawnState.dawn : 0);
-        if (inDawn) {
-          const [sunX, sunY] = walkScene.portalCenter(camera, stageSize.width, stageSize.height);
-          dawnSkyRef.current.style.setProperty("--sun-x", `${sunX}px`);
-          dawnSkyRef.current.style.setProperty("--sun-y", `${sunY}px`);
-        }
+        const opacity = inPass ? passState.caseThreeReveal : passProgress >= 1 ? 1 : 0;
+        caseThreeRef.current.style.opacity = String(opacity);
+        caseThreeRef.current.style.transform = flying && inPass && opacity > 0 ? project("caseThree") : "none";
       }
       renderer.render(scene, camera);
     };
@@ -1800,7 +1793,6 @@ export function ButterflyExperience() {
   return (
     <main ref={shellRef} className="study-shell">
       <div ref={stageRef} className="hero-stage">
-        <div ref={dawnSkyRef} className="dawn-sky" aria-hidden="true" />
         <div ref={mountRef} className="canvas-mount" aria-hidden="true" />
         <HeroStory />
 

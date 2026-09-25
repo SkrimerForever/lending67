@@ -163,44 +163,89 @@ export function getWalkFlightState(scroll: number, options: WalkFlightOptions): 
   };
 }
 
-// Dawn: the transition from case 02 to case 03, driven by its own 0..1
-// progress. The camera pulls back from the case 02 screen into the night field
-// (the screen glows over the path, the walker faces it), dawn rises behind the
-// screen and brings the first colour, the screen turns into case 03, and the
-// camera flies back in until case 03 fills the frame.
-export type DawnState = {
+// Case 02 → case 03, driven by its own 0..1 progress. The camera backs off the
+// case 02 screen, the screen breaks into points that gather into the butterfly
+// from the opening, the camera follows it through the dark to the case 03
+// screen, the butterfly spreads out over that screen, and the camera flies in.
+export type ButterflyPassState = {
   active: boolean;
   cameraPosition: Vec3;
   cameraTarget: Vec3;
-  // 0 night → 1 dawn: stars fade, sky and ground take on colour.
-  dawn: number;
-  // 0 shows case 02 on the screen, 1 shows case 03.
-  screenMix: number;
+  // Case 02 DOM fades while its points take over (0 → 1).
+  screenDissolve: number;
+  // Points leave the case 02 screen and form the butterfly (0 → 1, staggered per point).
+  gather: number;
+  // Points leave the butterfly and spread over the case 03 screen (0 → 1, staggered).
+  land: number;
+  butterflyPosition: Vec3;
+  // Unit direction of flight.
+  butterflyHeading: Vec3;
+  // The first colour on the site: a faint warmth on the wing tips.
+  warmth: number;
+  // Glow of the case 03 screen in the dark, then the DOM case on it.
+  caseThreeLight: number;
+  caseThreeReveal: number;
 };
 
+// The case 03 screen stands further on, off to the right, facing back along +Z.
+export const CASE_THREE_SCREEN: Vec3 = [6, LIGHT_Y, -32];
 const PORTAL: Vec3 = [0, LIGHT_Y, LIGHT_Z + PORTAL_DISTANCE];
-const DAWN_TIMES = [0, 0.14, 0.3, 0.7, 0.86, 1];
-const DAWN_KNOTS: Vec3[] = [PORTAL, [0.1, 2.1, -6], [0.55, 3.0, 4.5], [0.25, 2.6, 0.5], [0, 2.0, -7], PORTAL];
-const NARROW_DAWN_KNOTS: Vec3[] = [PORTAL, [0, 2.1, -5], [0.2, 3.0, 6], [0.1, 2.6, 2], [0, 2.0, -7], PORTAL];
+const CASE_THREE_PORTAL: Vec3 = [CASE_THREE_SCREEN[0], LIGHT_Y, CASE_THREE_SCREEN[2] + PORTAL_DISTANCE];
 
-export function getDawnState(progress: number, options: WalkFlightOptions): DawnState {
-  const dawn = smooth(progress, 0.28, 0.72);
-  const screenMix = smooth(progress, 0.46, 0.62);
-  const straightAhead: Vec3 = [0, LIGHT_Y, LIGHT_Z];
+const PASS_TIMES = [0, 0.14, 0.3, 0.46, 0.62, 0.76, 0.9, 1];
+const PASS_KNOTS: Vec3[] = [
+  PORTAL,
+  [0, 1.8, -7.6],
+  [0.2, 1.9, -8.4],
+  [0.9, 2.05, -12.5],
+  [3.0, 2.0, -18.5],
+  [5.2, 1.85, -24.5],
+  [6, 1.75, -27.8],
+  CASE_THREE_PORTAL,
+];
+const NARROW_PASS_KNOTS: Vec3[] = PASS_KNOTS.map(([x, y, z], i) =>
+  i === 0 || i === PASS_KNOTS.length - 1 ? [x, y, z] : [x * 0.8, y, z + 1.2]);
+
+// The butterfly forms in front of the case 02 screen and flies to case 03.
+const FLIGHT_TIMES = [0.26, 0.42, 0.56, 0.7, 0.8];
+const FLIGHT_KNOTS: Vec3[] = [
+  [0, 1.75, -13.6],
+  [0.9, 2.2, -17.5],
+  [3.2, 2.0, -23],
+  [5.4, 1.8, -28.4],
+  [6, LIGHT_Y, -31.6],
+];
+
+export function getButterflyPassState(progress: number, options: WalkFlightOptions): ButterflyPassState {
+  const gather = smooth(progress, 0.1, 0.3);
+  const land = smooth(progress, 0.7, 0.84);
+  const screenDissolve = smooth(progress, 0.08, 0.2);
+  const caseThreeLight = smooth(progress, 0.56, 0.74);
+  const caseThreeReveal = smooth(progress, 0.8, 0.9);
+  const warmth = smooth(progress, 0.3, 0.46) * (1 - 0.6 * land);
+  const flight = (at: number) => cameraOnPath(at, FLIGHT_KNOTS, FLIGHT_TIMES);
+  const butterflyPosition = flight(progress);
+  const ahead = flight(Math.min(0.8, Math.max(0.27, progress) + 0.02));
+  const behind = flight(Math.min(0.78, Math.max(0.26, progress)));
+  const heading = ahead.map((v, i) => v - behind[i]) as Vec3;
+  const length = Math.hypot(...heading) || 1;
+  const butterflyHeading = heading.map((v) => v / length) as Vec3;
+  const common = { screenDissolve, gather, land, butterflyPosition, butterflyHeading, warmth, caseThreeLight, caseThreeReveal };
+
   if (progress <= 0) {
-    return { active: false, cameraPosition: [...PORTAL], cameraTarget: straightAhead, dawn: 0, screenMix: 0 };
+    return { ...common, active: false, cameraPosition: [...PORTAL], cameraTarget: [0, LIGHT_Y, LIGHT_Z] };
   }
   if (options.reducedMotion) {
-    return { active: true, cameraPosition: [...PORTAL], cameraTarget: straightAhead, dawn, screenMix };
+    // No camera travel: case 02 crossfades straight into case 03.
+    return { ...common, active: true, cameraPosition: [...PORTAL], cameraTarget: [0, LIGHT_Y, LIGHT_Z], gather: 0, land: 0, warmth: 0 };
   }
-  // While the camera is back in the field it tilts up a little, so the sky
-  // (and the dawn) takes more of the frame; it levels out for the fly-in.
-  const wide = smooth(progress, 0.05, 0.3) * (1 - smooth(progress, 0.72, 0.96));
-  return {
-    active: true,
-    cameraPosition: cameraOnPath(progress, options.narrow ? NARROW_DAWN_KNOTS : DAWN_KNOTS, DAWN_TIMES),
-    cameraTarget: [0, LIGHT_Y + wide * 1.1, LIGHT_Z],
-    dawn,
-    screenMix,
-  };
+  const cameraPosition = cameraOnPath(progress, options.narrow ? NARROW_PASS_KNOTS : PASS_KNOTS, PASS_TIMES);
+  // Look at the case 02 screen, then follow the butterfly, then settle
+  // straight onto the case 03 screen for the fly-in.
+  const follow = smooth(progress, 0.2, 0.34) * (1 - smooth(progress, 0.74, 0.88));
+  const settle = smooth(progress, 0.74, 0.88);
+  const screen: Vec3 = settle > 0 ? CASE_THREE_SCREEN : [0, LIGHT_Y, LIGHT_Z];
+  const cameraTarget = [0, 1, 2].map((axis) =>
+    lerp(screen[axis], butterflyPosition[axis], follow)) as Vec3;
+  return { ...common, active: true, cameraPosition, cameraTarget };
 }

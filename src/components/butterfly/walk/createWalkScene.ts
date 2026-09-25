@@ -3,17 +3,24 @@ import type { PerformanceProfile } from "../performance-profile";
 import { createWalkEnvironment } from "./walkEnvironment";
 import { createWalkerFigure } from "./WalkerFigure";
 import { quadToMatrix3d, type ScreenPoint } from "./portalTransform";
-import { LIGHT_Y, LIGHT_Z, PORTAL_HEIGHT, type DawnState, type WalkFlightState } from "./walkFlightState";
+import { createPassButterfly } from "./PassButterfly";
+import {
+  CASE_THREE_SCREEN,
+  LIGHT_Y,
+  LIGHT_Z,
+  PORTAL_HEIGHT,
+  type ButterflyPassState,
+  type Vec3,
+  type WalkFlightState,
+} from "./walkFlightState";
 
 export type WalkScene = {
   group: THREE.Group;
-  // After case 02 the dawn state, when active, owns the camera instead.
-  update(state: WalkFlightState, time: number, camera: THREE.PerspectiveCamera, dawn?: DawnState): void;
+  // After case 02 the butterfly pass, when active, owns the camera instead.
+  update(state: WalkFlightState, time: number, camera: THREE.PerspectiveCamera, pass?: ButterflyPassState): void;
   setPixelRatio(value: number): void;
-  // CSS transform that lays a full-viewport DOM layer onto the light panel.
-  portalTransform(camera: THREE.PerspectiveCamera, width: number, height: number): string;
-  // Screen position of the light panel's centre, in pixels.
-  portalCenter(camera: THREE.PerspectiveCamera, width: number, height: number): ScreenPoint;
+  // CSS transform that lays a full-viewport DOM layer onto a case screen.
+  portalTransform(camera: THREE.PerspectiveCamera, width: number, height: number, screen: "caseTwo" | "caseThree"): string;
   dispose(): void;
 };
 
@@ -29,48 +36,62 @@ export function createWalkScene(profile: PerformanceProfile, pixelRatio: number)
     { ground: profile.walkGroundParticleCount, dust: profile.walkDustParticleCount },
     pixelRatio,
   );
+  const butterfly = createPassButterfly(profile.passButterflyParticleCount, pixelRatio);
   group.add(environment.group);
   group.add(walker.points);
+  group.add(butterfly.points);
   const target = new THREE.Vector3();
+  const eye = new THREE.Vector3();
   const corner = new THREE.Vector3();
   const portalCorners: Array<[number, number]> = [[-0.5, 0.5], [0.5, 0.5], [0.5, -0.5], [-0.5, -0.5]];
+  const screenCenters: Record<"caseTwo" | "caseThree", Vec3> = {
+    caseTwo: [0, LIGHT_Y, LIGHT_Z],
+    caseThree: CASE_THREE_SCREEN,
+  };
 
   return {
     group,
-    update(state, time, camera, dawn) {
+    update(state, time, camera, pass) {
       group.visible = state.active;
       if (!state.active) return;
+      const passing = pass?.active ?? false;
       walker.points.position.z = state.walkerZ;
       walker.update(state.stride, time, state.walkerReveal);
-      environment.setAspect(camera.aspect);
-      environment.update(state, time, dawn?.dawn ?? 0);
       // The camera pose comes straight from scroll so reversal is exact.
-      const pose = dawn?.active ? dawn : state;
-      camera.position.set(...pose.cameraPosition).add(WALK_ORIGIN);
+      const pose = passing && pass ? pass : state;
+      eye.set(...pose.cameraPosition);
+      camera.position.copy(eye).add(WALK_ORIGIN);
       target.set(...pose.cameraTarget).add(WALK_ORIGIN);
       camera.lookAt(target);
+      environment.setAspect(camera.aspect);
+      environment.update(state, time, {
+        // The case 02 screen gives its light to the butterfly as it dissolves.
+        caseTwo: state.lightReveal * (1 - (passing && pass ? pass.screenDissolve : 0)),
+        // Case 03 is a dark screen: its light is a soft glow, not a white panel.
+        caseThree: passing && pass ? pass.caseThreeLight * 0.35 : 0,
+      }, eye);
+      if (pass) butterfly.update(pass, time);
+      butterfly.setAspect(camera.aspect);
     },
     setPixelRatio(value) {
       walker.setPixelRatio(value);
       environment.setPixelRatio(value);
+      butterfly.setPixelRatio(value);
     },
-    portalCenter(camera, width, height) {
-      camera.updateMatrixWorld();
-      corner.set(0, LIGHT_Y, LIGHT_Z).add(WALK_ORIGIN).project(camera);
-      return [(corner.x + 1) * 0.5 * width, (1 - corner.y) * 0.5 * height];
-    },
-    portalTransform(camera, width, height) {
+    portalTransform(camera, width, height, screen) {
       camera.updateMatrixWorld();
       const portalWidth = PORTAL_HEIGHT * camera.aspect;
-      const screen = portalCorners.map(([u, v]): ScreenPoint => {
-        corner.set(u * portalWidth, LIGHT_Y + v * PORTAL_HEIGHT, LIGHT_Z).add(WALK_ORIGIN).project(camera);
+      const [cx, cy, cz] = screenCenters[screen];
+      const quad = portalCorners.map(([u, v]): ScreenPoint => {
+        corner.set(cx + u * portalWidth, cy + v * PORTAL_HEIGHT, cz).add(WALK_ORIGIN).project(camera);
         return [(corner.x + 1) * 0.5 * width, (1 - corner.y) * 0.5 * height];
       });
-      return quadToMatrix3d(width, height, screen);
+      return quadToMatrix3d(width, height, quad);
     },
     dispose() {
       walker.dispose();
       environment.dispose();
+      butterfly.dispose();
     },
   };
 }

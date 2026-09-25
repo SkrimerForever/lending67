@@ -1,10 +1,11 @@
 import * as THREE from "three";
-import { LIGHT_Y, LIGHT_Z, PORTAL_HEIGHT, type WalkFlightState } from "./walkFlightState";
+import { CASE_THREE_SCREEN, LIGHT_Y, LIGHT_Z, PORTAL_HEIGHT, type WalkFlightState } from "./walkFlightState";
 
 export type WalkEnvironment = {
   group: THREE.Group;
-  // dawn 0..1: stars fade out, ground, dust and light take on dawn colours.
-  update(state: WalkFlightState, time: number, dawn?: number): void;
+  // screens: glow of the case 02 and case 03 screens in the dark (0..1 each).
+  // eye: where the camera is, so the sky dome can travel with it.
+  update(state: WalkFlightState, time: number, screens: { caseTwo: number; caseThree: number }, eye: THREE.Vector3): void;
   setPixelRatio(value: number): void;
   setAspect(aspect: number): void;
   dispose(): void;
@@ -79,20 +80,93 @@ function sampleStars(count: number) {
 }
 
 const pointFragment = /* glsl */ `
-  uniform vec3 uTint;
   varying float vAlpha;
   void main() {
     float distanceToCenter = length(gl_PointCoord - 0.5);
-    gl_FragColor = vec4(uTint, (1.0 - smoothstep(0.2, 0.5, distanceToCenter)) * vAlpha);
+    gl_FragColor = vec4(vec3(0.84, 0.88, 0.9), (1.0 - smoothstep(0.2, 0.5, distanceToCenter)) * vAlpha);
   }
 `;
 
-// Night is silver; dawn warms the ground and light, and cools the dust a little.
-const SILVER = new THREE.Color(0.84, 0.88, 0.9);
-const DAWN_GROUND = new THREE.Color(1.0, 0.79, 0.66);
-const DAWN_DUST = new THREE.Color(0.92, 0.84, 0.92);
-const NIGHT_LIGHT = new THREE.Color(0.804, 0.855, 0.886);
-const DAWN_LIGHT = new THREE.Color(1.0, 0.86, 0.74);
+type ScreenLight = {
+  meshes: THREE.Mesh[];
+  uniforms: { uReveal: { value: number } };
+  setAspect(aspect: number): void;
+  dispose(): void;
+};
+
+// A case screen in the dark: a lit panel that takes the viewport's aspect, so
+// the DOM case can be projected onto it and land full-screen, plus a soft halo
+// that fades to nothing before its quad edges.
+function createScreenLight(center: THREE.Vector3, tint: THREE.Color): ScreenLight {
+  const uniforms = { uReveal: { value: 0 }, uTint: { value: tint } };
+  const panelUniforms = { ...uniforms, uSize: { value: new THREE.Vector2(3.2, PORTAL_HEIGHT) } };
+  const quad = /* glsl */ `
+    varying vec2 vUv;
+    void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+  `;
+  const panelGeometry = new THREE.PlaneGeometry(1, 1);
+  const panelMaterial = new THREE.ShaderMaterial({
+    uniforms: panelUniforms,
+    vertexShader: quad,
+    fragmentShader: /* glsl */ `
+      uniform float uReveal;
+      uniform vec3 uTint;
+      uniform vec2 uSize;
+      varying vec2 vUv;
+      void main() {
+        vec2 q = abs(vUv - 0.5) * uSize;
+        vec2 d = q - (uSize * 0.5 - 0.08);
+        float edge = length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
+        float body = 1.0 - smoothstep(-0.06, 0.08, edge);
+        gl_FragColor = vec4(uTint, body * uReveal);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const panel = new THREE.Mesh(panelGeometry, panelMaterial);
+  panel.position.copy(center);
+  panel.scale.set(3.2, PORTAL_HEIGHT, 1);
+
+  const haloGeometry = new THREE.PlaneGeometry(12, 7);
+  const haloMaterial = new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader: quad,
+    fragmentShader: /* glsl */ `
+      uniform float uReveal;
+      uniform vec3 uTint;
+      varying vec2 vUv;
+      void main() {
+        vec2 q = (vUv - 0.5) * vec2(2.4, 1.4);
+        vec2 edge = abs(vUv - 0.5);
+        float fade = (1.0 - smoothstep(0.32, 0.5, edge.x)) * (1.0 - smoothstep(0.28, 0.5, edge.y));
+        float glow = exp(-dot(q, q) * 3.2) * 0.35 * fade;
+        gl_FragColor = vec4(uTint, glow * uReveal);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const halo = new THREE.Mesh(haloGeometry, haloMaterial);
+  halo.position.copy(center).add(new THREE.Vector3(0, 0, -0.2));
+
+  return {
+    meshes: [panel, halo],
+    uniforms,
+    setAspect(aspect) {
+      const width = PORTAL_HEIGHT * aspect;
+      panel.scale.x = width;
+      panelUniforms.uSize.value.x = width;
+      halo.scale.x = width / 3.2;
+    },
+    dispose() {
+      panelGeometry.dispose(); panelMaterial.dispose();
+      haloGeometry.dispose(); haloMaterial.dispose();
+    },
+  };
+}
 
 export function createWalkEnvironment(
   counts: { ground: number; dust: number },
@@ -108,7 +182,6 @@ export function createWalkEnvironment(
     uReveal: { value: 0 },
     uTime: { value: 0 },
     uPixelRatio: { value: pixelRatio },
-    uTint: { value: SILVER.clone() },
   };
   const groundMaterial = new THREE.ShaderMaterial({
     uniforms: groundUniforms,
@@ -149,7 +222,6 @@ export function createWalkEnvironment(
     uStreak: { value: 0 },
     uTime: { value: 0 },
     uPixelRatio: { value: pixelRatio },
-    uTint: { value: SILVER.clone() },
   };
   const dustMaterial = new THREE.ShaderMaterial({
     uniforms: dustUniforms,
@@ -226,86 +298,27 @@ export function createWalkEnvironment(
   starPoints.frustumCulled = false;
   group.add(starPoints);
 
-  const lightUniforms = { uReveal: { value: 0 }, uTint: { value: NIGHT_LIGHT.clone() } };
-  // The panel is the case 02 screen: it takes the viewport's aspect so the DOM
-  // case can be projected onto it and land full-screen at the end of the flight.
-  const panelUniforms = {
-    uReveal: lightUniforms.uReveal,
-    uTint: lightUniforms.uTint,
-    uSize: { value: new THREE.Vector2(3.2, PORTAL_HEIGHT) },
-  };
-  const panelGeometry = new THREE.PlaneGeometry(1, 1);
-  const panelMaterial = new THREE.ShaderMaterial({
-    uniforms: panelUniforms,
-    vertexShader: /* glsl */ `
-      varying vec2 vUv;
-      void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
-    `,
-    fragmentShader: /* glsl */ `
-      uniform float uReveal;
-      uniform vec3 uTint;
-      uniform vec2 uSize;
-      varying vec2 vUv;
-      void main() {
-        vec2 q = abs(vUv - 0.5) * uSize;
-        vec2 d = q - (uSize * 0.5 - 0.08);
-        float edge = length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
-        float body = 1.0 - smoothstep(-0.06, 0.08, edge);
-        gl_FragColor = vec4(uTint, body * uReveal);
-      }
-    `,
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-  });
-  const panel = new THREE.Mesh(panelGeometry, panelMaterial);
-  panel.position.set(0, LIGHT_Y, LIGHT_Z);
-  panel.scale.set(3.2, PORTAL_HEIGHT, 1);
-  group.add(panel);
-
-  const haloGeometry = new THREE.PlaneGeometry(12, 7);
-  const haloMaterial = new THREE.ShaderMaterial({
-    uniforms: lightUniforms,
-    vertexShader: /* glsl */ `
-      varying vec2 vUv;
-      void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
-    `,
-    fragmentShader: /* glsl */ `
-      uniform float uReveal;
-      uniform vec3 uTint;
-      varying vec2 vUv;
-      void main() {
-        vec2 q = (vUv - 0.5) * vec2(2.4, 1.4);
-        vec2 edge = abs(vUv - 0.5);
-        float fade = (1.0 - smoothstep(0.32, 0.5, edge.x)) * (1.0 - smoothstep(0.28, 0.5, edge.y));
-        float glow = exp(-dot(q, q) * 3.2) * 0.35 * fade;
-        gl_FragColor = vec4(uTint, glow * uReveal);
-      }
-    `,
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-  });
-  const halo = new THREE.Mesh(haloGeometry, haloMaterial);
-  halo.position.set(0, LIGHT_Y, LIGHT_Z - 0.2);
-  group.add(halo);
+  // Case 02's screen is cool silver; case 03's carries the butterfly's first
+  // warmth, very faintly.
+  const caseTwoLight = createScreenLight(new THREE.Vector3(0, LIGHT_Y, LIGHT_Z), new THREE.Color(0.804, 0.855, 0.886));
+  const caseThreeLight = createScreenLight(new THREE.Vector3(...CASE_THREE_SCREEN), new THREE.Color(0.9, 0.86, 0.84));
+  group.add(...caseTwoLight.meshes, ...caseThreeLight.meshes);
 
   return {
     group,
-    update(state, time, dawn = 0) {
+    update(state, time, screens, eye) {
       groundUniforms.uReveal.value = state.groundReveal;
       groundUniforms.uTime.value = time;
       dustUniforms.uReveal.value = state.dustReveal;
       dustUniforms.uStreak.value = state.dustStreak;
       dustUniforms.uTime.value = time;
-      // The sky travels with the camera, so stars read as infinitely far away.
-      starPoints.position.set(...state.cameraPosition);
-      starUniforms.uReveal.value = state.dustReveal * (1 - dawn);
+      // The sky travels with the camera (eye is local to this group), so
+      // stars read as infinitely far away.
+      starPoints.position.copy(eye);
+      starUniforms.uReveal.value = state.dustReveal;
       starUniforms.uTime.value = time;
-      lightUniforms.uReveal.value = state.lightReveal;
-      groundUniforms.uTint.value.copy(SILVER).lerp(DAWN_GROUND, dawn * 0.85);
-      dustUniforms.uTint.value.copy(SILVER).lerp(DAWN_DUST, dawn * 0.7);
-      lightUniforms.uTint.value.copy(NIGHT_LIGHT).lerp(DAWN_LIGHT, dawn);
+      caseTwoLight.uniforms.uReveal.value = screens.caseTwo;
+      caseThreeLight.uniforms.uReveal.value = screens.caseThree;
     },
     setPixelRatio(value) {
       groundUniforms.uPixelRatio.value = value;
@@ -313,17 +326,15 @@ export function createWalkEnvironment(
       starUniforms.uPixelRatio.value = value;
     },
     setAspect(aspect) {
-      const width = PORTAL_HEIGHT * aspect;
-      panel.scale.x = width;
-      panelUniforms.uSize.value.x = width;
-      halo.scale.x = width / 3.2;
+      caseTwoLight.setAspect(aspect);
+      caseThreeLight.setAspect(aspect);
     },
     dispose() {
       groundGeometry.dispose(); groundMaterial.dispose();
       dustGeometry.dispose(); dustMaterial.dispose();
       starGeometry.dispose(); starMaterial.dispose();
-      panelGeometry.dispose(); panelMaterial.dispose();
-      haloGeometry.dispose(); haloMaterial.dispose();
+      caseTwoLight.dispose();
+      caseThreeLight.dispose();
     },
   };
 }

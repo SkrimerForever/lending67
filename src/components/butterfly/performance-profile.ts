@@ -7,6 +7,7 @@ export type PerformanceProfile = {
   walkerParticleCount: number;
   walkGroundParticleCount: number;
   walkDustParticleCount: number;
+  passButterflyParticleCount: number;
   pixelRatioCap: number;
   columnSampleWidth: number;
 };
@@ -30,6 +31,7 @@ const HIGH: PerformanceProfile = {
   walkerParticleCount: 40_000,
   walkGroundParticleCount: 6_000,
   walkDustParticleCount: 1_500,
+  passButterflyParticleCount: 9_000,
   pixelRatioCap: 2,
   columnSampleWidth: 520,
 };
@@ -43,6 +45,7 @@ const BALANCED: PerformanceProfile = {
   walkerParticleCount: 24_000,
   walkGroundParticleCount: 4_000,
   walkDustParticleCount: 1_000,
+  passButterflyParticleCount: 6_000,
   pixelRatioCap: 1.5,
   columnSampleWidth: 380,
 };
@@ -56,6 +59,7 @@ const LOW: PerformanceProfile = {
   walkerParticleCount: 12_000,
   walkGroundParticleCount: 2_200,
   walkDustParticleCount: 600,
+  passButterflyParticleCount: 3_500,
   pixelRatioCap: 1,
   columnSampleWidth: 280,
 };
