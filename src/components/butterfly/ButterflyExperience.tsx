@@ -863,7 +863,10 @@ export function ButterflyExperience() {
       columnPoints.position.set(-viewWidth * 0.465, 0, -distance);
       columnUniforms.uButterflyCenter.value.set(camera.aspect * 0.69, 0.18);
     };
+    const stageSize = { width: 1, height: 1 };
     const resize = () => {
+      stageSize.width = mount.clientWidth;
+      stageSize.height = mount.clientHeight;
       renderer.setSize(mount.clientWidth, mount.clientHeight, false);
       camera.aspect = mount.clientWidth / mount.clientHeight;
       camera.updateProjectionMatrix();
@@ -1746,11 +1749,16 @@ export function ButterflyExperience() {
       if (walkVeilRef.current) {
         walkVeilRef.current.style.opacity = String(walkState.whiteout * (1 - walkState.caseReveal) * 0.12);
       }
-      if (caseTwoRef.current) {
-        caseTwoRef.current.style.opacity = String(walkState.caseReveal);
-        caseTwoRef.current.style.transform = `scale(${1.04 - walkState.caseReveal * 0.04})`;
-      }
       walkScene.update(walkState, sceneTime, camera);
+      if (caseTwoRef.current) {
+        // Case 02 is the screen inside the light: it rides the light panel while
+        // the camera flies in and lands full-screen when the flight ends.
+        const inPortal = walkState.active && !reduceMotion.matches && walkState.caseReveal < 1;
+        caseTwoRef.current.style.opacity = String(inPortal ? walkState.lightReveal : walkState.caseReveal);
+        caseTwoRef.current.style.transform = inPortal
+          ? walkScene.portalTransform(camera, stageSize.width, stageSize.height)
+          : "none";
+      }
       renderer.render(scene, camera);
     };
     resize(); render();

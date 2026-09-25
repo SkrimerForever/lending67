@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getWalkFlightState, LIGHT_Z, WALK_END, WALK_START } from "./walkFlightState.ts";
+import { getWalkFlightState, LIGHT_Z, PORTAL_DISTANCE, WALK_END, WALK_START } from "./walkFlightState.ts";
 
 const desktop = { reducedMotion: false, narrow: false };
 const narrow = { reducedMotion: false, narrow: true };
@@ -72,7 +72,8 @@ test("case 02 is one short scroll after the shoulder pass", () => {
 test("the flight ends inside the light and reveals case 02", () => {
   const end = getWalkFlightState(WALK_END, desktop);
   assert.equal(end.caseReveal, 1);
-  assert.ok(end.cameraPosition[2] < LIGHT_Z + 1.5);
+  assert.ok(Math.abs(end.cameraPosition[2] - (LIGHT_Z + PORTAL_DISTANCE)) < 1e-9);
+  assert.ok(end.cameraPosition[2] < LIGHT_Z + 2.5);
 });
 
 test("camera travel is continuous", () => {
