@@ -5,6 +5,8 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import * as THREE from "three";
 import { ApproachScene } from "./ApproachScene";
+import { DOM_SWITCH } from "./ascii/asciiTransition";
+import { createAsciiTransition, type AsciiTransition } from "./ascii/createAsciiTransition";
 import { FlowArchitectCase } from "./FlowArchitectCase";
 import { HeroStory } from "./HeroStory";
 import { LoadingLine } from "./LoadingLine";
@@ -422,6 +424,7 @@ export function ButterflyExperience() {
   const walkVeilRef = useRef<HTMLDivElement>(null);
   const caseTwoRef = useRef<HTMLElement>(null);
   const caseThreeRef = useRef<HTMLElement>(null);
+  const asciiCanvasRef = useRef<HTMLCanvasElement>(null);
   const uniformsRef = useRef<Uniforms | null>(null);
   const progressRef = useRef({ value: 0 });
   const flightRef = useRef({ value: 0 });
@@ -568,20 +571,38 @@ export function ButterflyExperience() {
         invalidateOnRefresh: true,
       },
     });
-    if (reducedTransition) {
+    const caseTwo = caseTwoRef.current;
+    const caseThree = caseThreeRef.current;
+    const asciiCanvas = asciiCanvasRef.current;
+    let ascii: AsciiTransition | null = null;
+    let sizeAscii: (() => void) | null = null;
+    if (reducedTransition || !caseTwo || !caseThree || !asciiCanvas) {
       thirdCaseTimeline.fromTo(select(".case-three"), { opacity: 0 }, { opacity: 1, duration: 1, ease: "none" });
     } else {
-      const closedDoor = () => window.innerWidth <= 760
-        ? "inset(0% 49.5% 0% 49.5%)"
-        : "inset(0% 34.5% 0% 64.5%)";
-      thirdCaseTimeline
-        .fromTo(select(".moex-terminal"), { x: 8, scale: 1 }, { x: "-7vw", scale: 0.96, opacity: 0.55, duration: 0.78, ease: "power2.inOut" }, 0.13)
-        .fromTo(select(".moex-copy"), { x: 0 }, { x: "7vw", opacity: 0.55, duration: 0.78, ease: "power2.inOut" }, 0.13)
-        .set(select(".case-three"), { opacity: 1 }, 0.24)
-        .fromTo(select(".case-three"),
-          { clipPath: closedDoor, scale: 1.035 },
-          { clipPath: "inset(0% 0% 0% 0%)", scale: 1, duration: 1.0, ease: "power2.inOut", immediateRender: true }, 0.24)
-        .to(select(".moex-terminal, .moex-copy"), { opacity: 0, duration: 0.2, ease: "power2.in" }, 0.82);
+      // Case 02 breaks into its own characters in black and white, a colour
+      // front scrambles them into case 03, and the glyphs fall away to reveal it.
+      const transition = createAsciiTransition(asciiCanvas, caseTwo, caseThree, {
+        from: [11, 11, 11],
+        to: [243, 245, 249],
+      });
+      ascii = transition;
+      sizeAscii = () => transition.resize(stage.clientWidth, stage.clientHeight, Math.min(window.devicePixelRatio, 2));
+      sizeAscii();
+      window.addEventListener("resize", sizeAscii);
+      const asciiProgress = { value: 0 };
+      thirdCaseTimeline.to(asciiProgress, {
+        value: 1,
+        duration: 1,
+        ease: "none",
+        onUpdate: () => {
+          const progress = asciiProgress.value;
+          transition.render(progress);
+          // Swap the screens underneath the glyphs once every cell is opaque.
+          const switched = progress >= DOM_SWITCH;
+          caseTwo.style.visibility = switched ? "hidden" : "";
+          caseThree.style.opacity = switched ? "1" : "0";
+        },
+      });
     }
 
     const context = gsap.context(() => {
@@ -665,6 +686,8 @@ export function ButterflyExperience() {
       moexTimeline.kill();
       thirdCaseTimeline.scrollTrigger?.kill();
       thirdCaseTimeline.kill();
+      if (sizeAscii) window.removeEventListener("resize", sizeAscii);
+      ascii?.dispose();
     };
   }, []);
 
@@ -1823,6 +1846,7 @@ export function ButterflyExperience() {
 
         <SecondCaseStub veilRef={walkVeilRef} stubRef={caseTwoRef} />
         <ThirdCase sectionRef={caseThreeRef} />
+        <canvas ref={asciiCanvasRef} className="ascii-transition" aria-hidden="true" />
 
         <LoadingLine progress={loadingProgress} complete={loadingComplete} />
       </div>

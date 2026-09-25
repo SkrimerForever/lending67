@@ -1405,7 +1405,7 @@ button, input { font: inherit; }
   .study-shell { height: 3300svh; }
 }
 
-/* Case 03 opens as a narrow lit opening in the gap between the MOEX screen and its title. */
+/* Case 03 is revealed from under the ASCII transition glyphs. */
 .case-three {
   position: absolute;
   z-index: 6;
@@ -1415,9 +1415,8 @@ button, input { font: inherit; }
   overflow: hidden;
   color: #15171b;
   background: radial-gradient(circle at 64% 43%, #fff 0, #fafbfe 42%, #edf0f5 100%);
-  clip-path: inset(0% 34.5% 0% 64.5%);
   opacity: 0;
-  will-change: clip-path, transform;
+  will-change: opacity;
   pointer-events: none;
 }
 .case-three::before {
@@ -1425,6 +1424,14 @@ button, input { font: inherit; }
   inset: 0;
   content: "";
   background: linear-gradient(90deg, rgba(236, 240, 246, .4), transparent 24%, transparent 78%, rgba(236, 240, 246, .4));
+  pointer-events: none;
+}
+.ascii-transition {
+  position: absolute;
+  z-index: 7;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
 }
 .case-three__frame {
@@ -1499,7 +1506,6 @@ button, input { font: inherit; }
 .case-three__input { position: absolute; right: 10%; bottom: 4%; left: 13%; height: 52px; padding: 17px 18px; border: 1px solid #e8ebf0; border-radius: 24px; color: #a6acb6; background: rgba(255,255,255,.95); box-shadow: 0 8px 24px rgba(37, 48, 65, .08); font-size: 12px; }
 .case-three__input span { float: right; display: grid; place-items: center; width: 25px; height: 25px; margin-top: -5px; border-radius: 50%; background: #f0f2f5; }
 @media (max-width: 760px) {
-  .case-three { clip-path: inset(0% 49.5% 0% 49.5%); }
   .case-three__frame { grid-template-columns: 48px minmax(0, 1fr); width: calc(100% - 20px); height: min(90svh, 720px); border-radius: 20px; }
   .case-three__history { display: none; }
   .case-three__rail { gap: 16px; padding-top: 17px; }
@@ -1524,5 +1530,5 @@ button, input { font: inherit; }
   .case-three__input { left: 5%; right: 5%; bottom: 3%; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .case-three { clip-path: none; opacity: 0; transform: none !important; }
+  .case-three { opacity: 0; transform: none !important; }
 }
