@@ -169,3 +169,24 @@ test("the butterfly flies fast and banks through its turns, then comes to rest",
   assert.equal(landed.butterflySpeed, 0);
   assert.equal(landed.cameraRoll, 0);
 });
+
+test("case 02 folds away in place — to a line, then a point — before the camera moves", () => {
+  const start = getButterflyPassState(0.001, desktop);
+  const folded = getButterflyPassState(0.12, desktop);
+  assert.ok(distance(folded.cameraPosition, start.cameraPosition) < 0.1, "camera holds while the screen folds");
+  const line = getButterflyPassState(0.08, desktop).collapse;
+  assert.ok(line[1] < 0.05 && line[0] > 0.9, `a line first: ${line}`);
+  const point = getButterflyPassState(0.14, desktop).collapse;
+  assert.ok(point[0] < 0.05 && point[1] < 0.05, `then a point: ${point}`);
+});
+
+test("the camera rises above the field and flies on, without backing off first", () => {
+  const start = getButterflyPassState(0.001, desktop).cameraPosition;
+  let highest = 0;
+  for (let progress = 0.001; progress <= 1; progress += 0.005) {
+    const [, y, z] = getButterflyPassState(progress, desktop).cameraPosition;
+    highest = Math.max(highest, y);
+    assert.ok(z <= start[2] + 0.6, `camera backs off at ${progress}`);
+  }
+  assert.ok(highest > 4.5, `highest ${highest}`);
+});

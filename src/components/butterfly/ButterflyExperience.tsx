@@ -1755,7 +1755,9 @@ export function ButterflyExperience() {
         if (inPass) opacity = 1 - passState.screenDissolve;
         else if (passProgress >= 1) opacity = 0;
         caseTwoRef.current.style.opacity = String(opacity);
-        caseTwoRef.current.style.transform = flying && (inPortal || (inPass && opacity > 0)) ? project("caseTwo") : "none";
+        caseTwoRef.current.style.transform = flying && inPass && opacity > 0
+          ? walkScene.portalTransform(camera, stageSize.width, stageSize.height, "caseTwo", passState.collapse)
+          : flying && inPortal ? project("caseTwo") : "none";
       }
       if (caseThreeRef.current) {
         const opacity = inPass ? passState.caseThreeReveal : passProgress >= 1 ? 1 : 0;

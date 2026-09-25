@@ -163,15 +163,18 @@ export function getWalkFlightState(scroll: number, options: WalkFlightOptions): 
   };
 }
 
-// Case 02 → case 03, driven by its own 0..1 progress. The camera backs off the
-// case 02 screen, the screen breaks into points that gather into the butterfly
-// from the opening, the camera follows it through the dark to the case 03
-// screen, the butterfly spreads out over that screen, and the camera flies in.
+// Case 02 → case 03, driven by its own 0..1 progress. The case 02 screen
+// folds away in place like a switched-off set (to a line, then to a point),
+// the point bursts into the butterfly from the opening, the camera rises and
+// flies on over the night field with it to the case 03 screen, the butterfly
+// spreads out over that screen, and the camera flies in.
 export type ButterflyPassState = {
   active: boolean;
   cameraPosition: Vec3;
   cameraTarget: Vec3;
-  // Case 02 DOM fades while its points take over (0 → 1).
+  // Width and height scale of the case 02 screen as it folds away (1 → ~0).
+  collapse: [number, number];
+  // Case 02 DOM fades once it has folded to a point (0 → 1).
   screenDissolve: number;
   // Points leave the case 02 screen and form the butterfly (0 → 1, staggered per point).
   gather: number;
@@ -198,33 +201,33 @@ export const CASE_THREE_SCREEN: Vec3 = [6, LIGHT_Y, -32];
 const PORTAL: Vec3 = [0, LIGHT_Y, LIGHT_Z + PORTAL_DISTANCE];
 const CASE_THREE_PORTAL: Vec3 = [CASE_THREE_SCREEN[0], LIGHT_Y, CASE_THREE_SCREEN[2] + PORTAL_DISTANCE];
 
-// Camera: a short back-off, then a chase that lags the butterfly so it moves
-// around the frame, then the fly-in to case 03.
-const PASS_TIMES = [0, 0.1, 0.22, 0.34, 0.46, 0.58, 0.7, 0.86];
+// Camera: holds while case 02 folds away, rises above the field, flies on
+// high behind the butterfly, then comes down onto the case 03 screen.
+const PASS_TIMES = [0, 0.12, 0.22, 0.32, 0.44, 0.56, 0.7, 0.86];
 const PASS_KNOTS: Vec3[] = [
   PORTAL,
-  [0, 1.8, -7.6],
-  [0.1, 1.9, -9.2],
-  [-0.4, 1.8, -12.2],
-  [1.0, 2.2, -16.5],
-  [3.6, 1.9, -21.5],
-  [5.7, 1.8, -26.5],
+  [0, 1.75, -11.6],
+  [0, 3.2, -11.2],
+  [0.3, 4.8, -12.5],
+  [1.6, 5.4, -16.0],
+  [3.4, 4.6, -20.5],
+  [5.4, 2.8, -25.8],
   CASE_THREE_PORTAL,
 ];
 const NARROW_PASS_KNOTS: Vec3[] = PASS_KNOTS.map(([x, y, z], i) =>
-  i === 0 || i === PASS_KNOTS.length - 1 ? [x, y, z] : [x * 0.8, y, z + 1.2]);
+  i === 0 || i === PASS_KNOTS.length - 1 ? [x, y, z] : [x * 0.8, y, z + 0.8]);
 
-// The butterfly forms in front of the case 02 screen, dips left, swoops up to
-// the right and dives onto the case 03 screen.
-const FLIGHT_START = 0.22;
+// The butterfly bursts out of the folded screen, climbs to the camera's
+// height, arcs to the right and dives onto the case 03 screen.
+const FLIGHT_START = 0.16;
 const FLIGHT_END = 0.66;
-const FLIGHT_TIMES = [FLIGHT_START, 0.32, 0.42, 0.52, 0.6, FLIGHT_END];
+const FLIGHT_TIMES = [FLIGHT_START, 0.28, 0.4, 0.52, 0.6, FLIGHT_END];
 const FLIGHT_KNOTS: Vec3[] = [
-  [0, 1.75, -13.6],
-  [-0.8, 1.3, -16.5],
-  [1.2, 2.4, -20.5],
-  [4.0, 1.6, -25],
-  [5.6, 2.0, -29],
+  [0, LIGHT_Y, -13.9],
+  [0.8, 3.2, -16.5],
+  [2.4, 4.4, -20],
+  [4.2, 3.0, -24.5],
+  [5.6, 2.1, -29],
   [6, LIGHT_Y, -31.6],
 ];
 
@@ -241,12 +244,16 @@ const headingAt = (at: number): Vec3 => {
 };
 
 export function getButterflyPassState(progress: number, options: WalkFlightOptions): ButterflyPassState {
-  const gather = smooth(progress, 0.08, 0.26);
+  const collapse: [number, number] = [
+    1 - 0.99 * smooth(progress, 0.07, 0.14),
+    1 - 0.985 * smooth(progress, 0.01, 0.08),
+  ];
+  const gather = smooth(progress, 0.13, 0.26);
   const land = smooth(progress, 0.62, 0.76);
-  const screenDissolve = smooth(progress, 0.06, 0.18);
+  const screenDissolve = smooth(progress, 0.11, 0.15);
   const caseThreeLight = smooth(progress, 0.5, 0.66);
   const caseThreeReveal = smooth(progress, 0.74, 0.86);
-  const warmth = smooth(progress, 0.26, 0.4) * (1 - 0.6 * land);
+  const warmth = smooth(progress, 0.2, 0.34) * (1 - 0.6 * land);
   const butterflyPosition = flight(progress);
   const butterflyHeading = headingAt(progress);
   const step = 0.006;
@@ -258,7 +265,7 @@ export function getButterflyPassState(progress: number, options: WalkFlightOptio
   const turn = headingAt(progress + 0.03)[0] - headingAt(progress - 0.03)[0];
   const butterflyBank = Math.max(-0.7, Math.min(0.7, turn * 1.6)) * flying;
   const common = {
-    screenDissolve, gather, land, butterflyPosition, butterflyHeading, butterflySpeed, butterflyBank,
+    collapse, screenDissolve, gather, land, butterflyPosition, butterflyHeading, butterflySpeed, butterflyBank,
     warmth, caseThreeLight, caseThreeReveal,
   };
 
@@ -269,14 +276,14 @@ export function getButterflyPassState(progress: number, options: WalkFlightOptio
     // No camera travel: case 02 crossfades straight into case 03.
     return {
       ...common, active: true, cameraPosition: [...PORTAL], cameraTarget: [0, LIGHT_Y, LIGHT_Z], cameraRoll: 0,
-      gather: 0, land: 0, warmth: 0, butterflySpeed: 0, butterflyBank: 0,
+      gather: 0, land: 0, warmth: 0, butterflySpeed: 0, butterflyBank: 0, collapse: [1, 1],
     };
   }
   const cameraPosition = cameraOnPath(progress, options.narrow ? NARROW_PASS_KNOTS : PASS_KNOTS, PASS_TIMES);
-  // Look at the case 02 screen, then chase the butterfly — aiming a little
-  // ahead of it, so it swings through the frame — then settle straight onto
-  // the case 03 screen for the fly-in.
-  const follow = smooth(progress, 0.16, 0.28) * (1 - smooth(progress, 0.62, 0.74));
+  // Look at the case 02 screen while it folds, then chase the butterfly —
+  // aiming a little ahead of it, so it swings through the frame — then settle
+  // straight onto the case 03 screen for the fly-in.
+  const follow = smooth(progress, 0.12, 0.24) * (1 - smooth(progress, 0.62, 0.74));
   const screen: Vec3 = progress > 0.5 ? CASE_THREE_SCREEN : [0, LIGHT_Y, LIGHT_Z];
   const aim = flight(Math.min(FLIGHT_END, progress + 0.04));
   const chase = [0, 1, 2].map((axis) => lerp(butterflyPosition[axis], aim[axis], 0.45)) as Vec3;

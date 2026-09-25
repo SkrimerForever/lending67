@@ -22,6 +22,7 @@ const vertexShader = /* glsl */ `
   uniform float uFlap;
   uniform float uAppear;
   uniform vec2 uPanelSize;
+  uniform vec2 uCollapse;
   uniform vec3 uFrom;
   uniform vec3 uTo;
   uniform mat4 uButterfly;
@@ -44,7 +45,8 @@ const vertexShader = /* glsl */ `
     float gather = ease(uGather * 1.4 - aSeed * 0.4);
     float land = ease(uLand * 1.4 - aSeed * 0.4);
 
-    vec3 onCaseTwo = uFrom + vec3(aRect * uPanelSize, 0.03);
+    // Points hold the folding case 02 screen: a line, then a point.
+    vec3 onCaseTwo = uFrom + vec3(aRect * uPanelSize * uCollapse, 0.03);
     vec3 onCaseThree = uTo + vec3(aRect * uPanelSize, 0.03);
 
     // Top view butterfly: x across the wings, z along the body (head at -z).
@@ -150,6 +152,7 @@ export function createPassButterfly(count: number, pixelRatio: number): PassButt
     uAppear: { value: 0 },
     uWarmth: { value: 0 },
     uPanelSize: { value: new THREE.Vector2(3.2, PORTAL_HEIGHT) },
+    uCollapse: { value: new THREE.Vector2(1, 1) },
     uFrom: { value: new THREE.Vector3(0, LIGHT_Y, LIGHT_Z) },
     uTo: { value: new THREE.Vector3(...CASE_THREE_SCREEN) },
     uButterfly: { value: new THREE.Matrix4() },
@@ -188,12 +191,16 @@ export function createPassButterfly(count: number, pixelRatio: number): PassButt
     points,
     update(state, time) {
       const fade = 1 - state.caseThreeReveal;
-      points.visible = state.active && state.screenDissolve > 0 && fade > 0;
+      // The points light up as the screen folds, so the line and the point
+      // it folds into glow before they burst into the butterfly.
+      const appear = 1 - state.collapse[1];
+      points.visible = state.active && appear > 0.01 && fade > 0;
       if (!points.visible) return;
       uniforms.uTime.value = time;
       uniforms.uGather.value = state.gather;
       uniforms.uLand.value = state.land;
-      uniforms.uAppear.value = state.screenDissolve * fade;
+      uniforms.uAppear.value = Math.min(1, appear * 1.2) * fade;
+      uniforms.uCollapse.value.set(...state.collapse);
       uniforms.uWarmth.value = state.warmth;
       // Wing beats and a gentle bob run on time, like the opening butterfly,
       // and quicken with speed; where it is along the way comes from scroll.

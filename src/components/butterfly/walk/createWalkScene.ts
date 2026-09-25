@@ -20,7 +20,14 @@ export type WalkScene = {
   update(state: WalkFlightState, time: number, camera: THREE.PerspectiveCamera, pass?: ButterflyPassState): void;
   setPixelRatio(value: number): void;
   // CSS transform that lays a full-viewport DOM layer onto a case screen.
-  portalTransform(camera: THREE.PerspectiveCamera, width: number, height: number, screen: "caseTwo" | "caseThree"): string;
+  // scale folds the screen about its centre (width, height).
+  portalTransform(
+    camera: THREE.PerspectiveCamera,
+    width: number,
+    height: number,
+    screen: "caseTwo" | "caseThree",
+    scale?: [number, number],
+  ): string;
   dispose(): void;
 };
 
@@ -71,8 +78,9 @@ export function createWalkScene(profile: PerformanceProfile, pixelRatio: number)
       camera.lookAt(target);
       environment.setAspect(camera.aspect);
       environment.update(state, time, {
-        // The case 02 screen gives its light to the butterfly as it dissolves.
-        caseTwo: state.lightReveal * (1 - (passing && pass ? pass.screenDissolve : 0)),
+        // The case 02 screen's glow goes out as soon as the screen starts to
+        // fold, so nothing shows behind it while it narrows to a line.
+        caseTwo: state.lightReveal * (passing && pass ? Math.pow(pass.collapse[1], 8) : 1),
         // Case 03 is a dark screen: its light is a soft glow, not a white panel.
         caseThree: passing && pass ? pass.caseThreeLight * 0.35 : 0,
       }, eye);
@@ -84,12 +92,13 @@ export function createWalkScene(profile: PerformanceProfile, pixelRatio: number)
       environment.setPixelRatio(value);
       butterfly.setPixelRatio(value);
     },
-    portalTransform(camera, width, height, screen) {
+    portalTransform(camera, width, height, screen, scale = [1, 1]) {
       camera.updateMatrixWorld();
-      const portalWidth = PORTAL_HEIGHT * camera.aspect;
+      const portalWidth = PORTAL_HEIGHT * camera.aspect * scale[0];
+      const portalHeight = PORTAL_HEIGHT * scale[1];
       const [cx, cy, cz] = screenCenters[screen];
       const quad = portalCorners.map(([u, v]): ScreenPoint => {
-        corner.set(cx + u * portalWidth, cy + v * PORTAL_HEIGHT, cz).add(WALK_ORIGIN).project(camera);
+        corner.set(cx + u * portalWidth, cy + v * portalHeight, cz).add(WALK_ORIGIN).project(camera);
         return [(corner.x + 1) * 0.5 * width, (1 - corner.y) * 0.5 * height];
       });
       return quadToMatrix3d(width, height, quad);
