@@ -25,6 +25,8 @@ const vertexShader = /* glsl */ `
   uniform vec3 uFrom;
   uniform vec3 uTo;
   uniform mat4 uButterfly;
+  uniform vec3 uHeading;
+  uniform float uSpeed;
   attribute vec2 aRect;
   attribute vec2 aWing;
   attribute float aSeed;
@@ -58,6 +60,11 @@ const vertexShader = /* glsl */ `
       body.y * sin(pitch) + body.z * cos(pitch)
     );
     vec3 onButterfly = (uButterfly * vec4(local, 1.0)).xyz;
+
+    // At speed a few points fall behind the wings as a short glittering trail.
+    float trail = smoothstep(0.82, 1.0, aSeed);
+    onButterfly -= uHeading * trail * uSpeed * (0.4 + 1.6 * fract(aSeed * 37.0));
+    onButterfly.y -= trail * uSpeed * 0.12;
 
     vec3 point = mix(onCaseTwo, onButterfly, gather);
     point = mix(point, onCaseThree, land);
@@ -146,6 +153,8 @@ export function createPassButterfly(count: number, pixelRatio: number): PassButt
     uFrom: { value: new THREE.Vector3(0, LIGHT_Y, LIGHT_Z) },
     uTo: { value: new THREE.Vector3(...CASE_THREE_SCREEN) },
     uButterfly: { value: new THREE.Matrix4() },
+    uHeading: { value: new THREE.Vector3(0, 0, -1) },
+    uSpeed: { value: 0 },
   };
   const material = new THREE.ShaderMaterial({
     uniforms,
@@ -172,6 +181,8 @@ export function createPassButterfly(count: number, pixelRatio: number): PassButt
   const target = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0);
   const bank = new THREE.Matrix4();
+  let wingPhase = 0;
+  let lastTime = 0;
 
   return {
     points,
@@ -184,15 +195,21 @@ export function createPassButterfly(count: number, pixelRatio: number): PassButt
       uniforms.uLand.value = state.land;
       uniforms.uAppear.value = state.screenDissolve * fade;
       uniforms.uWarmth.value = state.warmth;
-      // Wing beats and a gentle bob run on time, like the opening butterfly;
-      // where it is along the way comes from scroll.
-      uniforms.uFlap.value = 0.25 + Math.sin(time * 7.2) * 0.7;
+      // Wing beats and a gentle bob run on time, like the opening butterfly,
+      // and quicken with speed; where it is along the way comes from scroll.
+      const delta = Math.min(0.05, Math.max(0, time - lastTime));
+      lastTime = time;
+      wingPhase += delta * (6.5 + state.butterflySpeed * 9);
+      uniforms.uFlap.value = 0.25 + Math.sin(wingPhase) * (0.7 + state.butterflySpeed * 0.15);
+      uniforms.uSpeed.value = state.butterflySpeed;
+      uniforms.uHeading.value.set(...state.butterflyHeading);
       position.set(...state.butterflyPosition);
       position.y += Math.sin(time * 2.1) * 0.03;
-      target.copy(position).add(new THREE.Vector3(...state.butterflyHeading));
-      // Matrix4.lookAt points local -Z along the heading, so the head leads.
+      target.copy(position).add(uniforms.uHeading.value);
+      // Matrix4.lookAt points local -Z along the heading, so the head leads;
+      // the body then rolls into the turn.
       uniforms.uButterfly.value.lookAt(position, target, up).setPosition(position);
-      uniforms.uButterfly.value.multiply(bank.makeRotationZ(Math.sin(time * 1.3) * 0.12));
+      uniforms.uButterfly.value.multiply(bank.makeRotationZ(-state.butterflyBank + Math.sin(time * 1.3) * 0.08));
     },
     setAspect(aspect) {
       uniforms.uPanelSize.value.x = PORTAL_HEIGHT * aspect;

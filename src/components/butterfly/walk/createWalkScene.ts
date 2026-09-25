@@ -53,7 +53,10 @@ export function createWalkScene(profile: PerformanceProfile, pixelRatio: number)
     group,
     update(state, time, camera, pass) {
       group.visible = state.active;
-      if (!state.active) return;
+      if (!state.active) {
+        camera.up.set(0, 1, 0);
+        return;
+      }
       const passing = pass?.active ?? false;
       walker.points.position.z = state.walkerZ;
       walker.update(state.stride, time, state.walkerReveal);
@@ -62,6 +65,9 @@ export function createWalkScene(profile: PerformanceProfile, pixelRatio: number)
       eye.set(...pose.cameraPosition);
       camera.position.copy(eye).add(WALK_ORIGIN);
       target.set(...pose.cameraTarget).add(WALK_ORIGIN);
+      // The camera leans with the butterfly during the chase.
+      const roll = passing && pass ? pass.cameraRoll : 0;
+      camera.up.set(Math.sin(roll), Math.cos(roll), 0);
       camera.lookAt(target);
       environment.setAspect(camera.aspect);
       environment.update(state, time, {

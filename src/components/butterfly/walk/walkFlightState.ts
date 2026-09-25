@@ -180,6 +180,12 @@ export type ButterflyPassState = {
   butterflyPosition: Vec3;
   // Unit direction of flight.
   butterflyHeading: Vec3;
+  // 0 hovering → 1 fastest: quickens the wing beat and stretches a trail.
+  butterflySpeed: number;
+  // Roll into turns, in radians (positive banks right).
+  butterflyBank: number;
+  // The camera leans a little with the butterfly.
+  cameraRoll: number;
   // The first colour on the site: a faint warmth on the wing tips.
   warmth: number;
   // Glow of the case 03 screen in the dark, then the DOM case on it.
@@ -192,60 +198,88 @@ export const CASE_THREE_SCREEN: Vec3 = [6, LIGHT_Y, -32];
 const PORTAL: Vec3 = [0, LIGHT_Y, LIGHT_Z + PORTAL_DISTANCE];
 const CASE_THREE_PORTAL: Vec3 = [CASE_THREE_SCREEN[0], LIGHT_Y, CASE_THREE_SCREEN[2] + PORTAL_DISTANCE];
 
-const PASS_TIMES = [0, 0.14, 0.3, 0.46, 0.62, 0.76, 0.9, 1];
+// Camera: a short back-off, then a chase that lags the butterfly so it moves
+// around the frame, then the fly-in to case 03.
+const PASS_TIMES = [0, 0.1, 0.22, 0.34, 0.46, 0.58, 0.7, 0.86];
 const PASS_KNOTS: Vec3[] = [
   PORTAL,
   [0, 1.8, -7.6],
-  [0.2, 1.9, -8.4],
-  [0.9, 2.05, -12.5],
-  [3.0, 2.0, -18.5],
-  [5.2, 1.85, -24.5],
-  [6, 1.75, -27.8],
+  [0.1, 1.9, -9.2],
+  [-0.4, 1.8, -12.2],
+  [1.0, 2.2, -16.5],
+  [3.6, 1.9, -21.5],
+  [5.7, 1.8, -26.5],
   CASE_THREE_PORTAL,
 ];
 const NARROW_PASS_KNOTS: Vec3[] = PASS_KNOTS.map(([x, y, z], i) =>
   i === 0 || i === PASS_KNOTS.length - 1 ? [x, y, z] : [x * 0.8, y, z + 1.2]);
 
-// The butterfly forms in front of the case 02 screen and flies to case 03.
-const FLIGHT_TIMES = [0.26, 0.42, 0.56, 0.7, 0.8];
+// The butterfly forms in front of the case 02 screen, dips left, swoops up to
+// the right and dives onto the case 03 screen.
+const FLIGHT_START = 0.22;
+const FLIGHT_END = 0.66;
+const FLIGHT_TIMES = [FLIGHT_START, 0.32, 0.42, 0.52, 0.6, FLIGHT_END];
 const FLIGHT_KNOTS: Vec3[] = [
   [0, 1.75, -13.6],
-  [0.9, 2.2, -17.5],
-  [3.2, 2.0, -23],
-  [5.4, 1.8, -28.4],
+  [-0.8, 1.3, -16.5],
+  [1.2, 2.4, -20.5],
+  [4.0, 1.6, -25],
+  [5.6, 2.0, -29],
   [6, LIGHT_Y, -31.6],
 ];
 
+const flight = (at: number) => cameraOnPath(at, FLIGHT_KNOTS, FLIGHT_TIMES);
+const normalize = (v: Vec3): Vec3 => {
+  const length = Math.hypot(...v) || 1;
+  return v.map((value) => value / length) as Vec3;
+};
+const headingAt = (at: number): Vec3 => {
+  const t = Math.min(FLIGHT_END - 0.012, Math.max(FLIGHT_START, at));
+  const ahead = flight(t + 0.012);
+  const here = flight(t);
+  return normalize([ahead[0] - here[0], ahead[1] - here[1], ahead[2] - here[2]]);
+};
+
 export function getButterflyPassState(progress: number, options: WalkFlightOptions): ButterflyPassState {
-  const gather = smooth(progress, 0.1, 0.3);
-  const land = smooth(progress, 0.7, 0.84);
-  const screenDissolve = smooth(progress, 0.08, 0.2);
-  const caseThreeLight = smooth(progress, 0.56, 0.74);
-  const caseThreeReveal = smooth(progress, 0.8, 0.9);
-  const warmth = smooth(progress, 0.3, 0.46) * (1 - 0.6 * land);
-  const flight = (at: number) => cameraOnPath(at, FLIGHT_KNOTS, FLIGHT_TIMES);
+  const gather = smooth(progress, 0.08, 0.26);
+  const land = smooth(progress, 0.62, 0.76);
+  const screenDissolve = smooth(progress, 0.06, 0.18);
+  const caseThreeLight = smooth(progress, 0.5, 0.66);
+  const caseThreeReveal = smooth(progress, 0.74, 0.86);
+  const warmth = smooth(progress, 0.26, 0.4) * (1 - 0.6 * land);
   const butterflyPosition = flight(progress);
-  const ahead = flight(Math.min(0.8, Math.max(0.27, progress) + 0.02));
-  const behind = flight(Math.min(0.78, Math.max(0.26, progress)));
-  const heading = ahead.map((v, i) => v - behind[i]) as Vec3;
-  const length = Math.hypot(...heading) || 1;
-  const butterflyHeading = heading.map((v) => v / length) as Vec3;
-  const common = { screenDissolve, gather, land, butterflyPosition, butterflyHeading, warmth, caseThreeLight, caseThreeReveal };
+  const butterflyHeading = headingAt(progress);
+  const step = 0.006;
+  const before = flight(Math.max(FLIGHT_START, progress - step));
+  const after = flight(Math.min(FLIGHT_END, progress + step));
+  const flying = progress > FLIGHT_START && progress < FLIGHT_END ? 1 : 0;
+  const butterflySpeed = flying * Math.min(1, Math.hypot(after[0] - before[0], after[1] - before[1], after[2] - before[2]) / (2 * step) / 60);
+  // Turning right (heading swinging towards +x) banks right.
+  const turn = headingAt(progress + 0.03)[0] - headingAt(progress - 0.03)[0];
+  const butterflyBank = Math.max(-0.7, Math.min(0.7, turn * 1.6)) * flying;
+  const common = {
+    screenDissolve, gather, land, butterflyPosition, butterflyHeading, butterflySpeed, butterflyBank,
+    warmth, caseThreeLight, caseThreeReveal,
+  };
 
   if (progress <= 0) {
-    return { ...common, active: false, cameraPosition: [...PORTAL], cameraTarget: [0, LIGHT_Y, LIGHT_Z] };
+    return { ...common, active: false, cameraPosition: [...PORTAL], cameraTarget: [0, LIGHT_Y, LIGHT_Z], cameraRoll: 0 };
   }
   if (options.reducedMotion) {
     // No camera travel: case 02 crossfades straight into case 03.
-    return { ...common, active: true, cameraPosition: [...PORTAL], cameraTarget: [0, LIGHT_Y, LIGHT_Z], gather: 0, land: 0, warmth: 0 };
+    return {
+      ...common, active: true, cameraPosition: [...PORTAL], cameraTarget: [0, LIGHT_Y, LIGHT_Z], cameraRoll: 0,
+      gather: 0, land: 0, warmth: 0, butterflySpeed: 0, butterflyBank: 0,
+    };
   }
   const cameraPosition = cameraOnPath(progress, options.narrow ? NARROW_PASS_KNOTS : PASS_KNOTS, PASS_TIMES);
-  // Look at the case 02 screen, then follow the butterfly, then settle
-  // straight onto the case 03 screen for the fly-in.
-  const follow = smooth(progress, 0.2, 0.34) * (1 - smooth(progress, 0.74, 0.88));
-  const settle = smooth(progress, 0.74, 0.88);
-  const screen: Vec3 = settle > 0 ? CASE_THREE_SCREEN : [0, LIGHT_Y, LIGHT_Z];
-  const cameraTarget = [0, 1, 2].map((axis) =>
-    lerp(screen[axis], butterflyPosition[axis], follow)) as Vec3;
-  return { ...common, active: true, cameraPosition, cameraTarget };
+  // Look at the case 02 screen, then chase the butterfly — aiming a little
+  // ahead of it, so it swings through the frame — then settle straight onto
+  // the case 03 screen for the fly-in.
+  const follow = smooth(progress, 0.16, 0.28) * (1 - smooth(progress, 0.62, 0.74));
+  const screen: Vec3 = progress > 0.5 ? CASE_THREE_SCREEN : [0, LIGHT_Y, LIGHT_Z];
+  const aim = flight(Math.min(FLIGHT_END, progress + 0.04));
+  const chase = [0, 1, 2].map((axis) => lerp(butterflyPosition[axis], aim[axis], 0.45)) as Vec3;
+  const cameraTarget = [0, 1, 2].map((axis) => lerp(screen[axis], chase[axis], follow)) as Vec3;
+  return { ...common, active: true, cameraPosition, cameraTarget, cameraRoll: butterflyBank * 0.25 * follow };
 }

@@ -565,7 +565,7 @@ export function ButterflyExperience() {
       scrollTrigger: {
         trigger: shell,
         start: () => `top+=${storyScrollDistance() + window.innerHeight * 6.0} top`,
-        end: () => `top+=${storyScrollDistance() + window.innerHeight * 11.4} top`,
+        end: () => `top+=${storyScrollDistance() + window.innerHeight * 9.6} top`,
         scrub: 0.8,
         invalidateOnRefresh: true,
       },

@@ -118,7 +118,7 @@ test("the butterfly pass starts on case 02 and ends full-screen on case 03", () 
 });
 
 test("the case 02 screen becomes the butterfly before it flies", () => {
-  const formed = getButterflyPassState(0.3, desktop);
+  const formed = getButterflyPassState(0.26, desktop);
   assert.equal(formed.screenDissolve, 1);
   assert.equal(formed.gather, 1);
   assert.equal(formed.land, 0);
@@ -127,15 +127,15 @@ test("the case 02 screen becomes the butterfly before it flies", () => {
 
 test("colour arrives only as a faint warmth on the butterfly", () => {
   assert.equal(getButterflyPassState(0.2, desktop).warmth, 0);
-  const flying = getButterflyPassState(0.55, desktop);
+  const flying = getButterflyPassState(0.45, desktop);
   assert.ok(flying.warmth > 0.9 && flying.warmth <= 1);
 });
 
 test("the butterfly reaches the case 03 screen and spreads over it before the fly-in", () => {
-  const landed = getButterflyPassState(0.84, desktop);
+  const landed = getButterflyPassState(0.76, desktop);
   assert.equal(landed.land, 1);
   assert.ok(distance(landed.butterflyPosition, CASE_THREE_SCREEN) < 0.5);
-  assert.equal(getButterflyPassState(0.79, desktop).caseThreeReveal, 0);
+  assert.equal(getButterflyPassState(0.73, desktop).caseThreeReveal, 0);
 });
 
 test("butterfly pass camera travel is continuous", () => {
@@ -153,4 +153,19 @@ test("reduced motion keeps the camera still and simply crossfades the cases", ()
   assert.deepEqual(getButterflyPassState(0.3, reducedPass).cameraPosition, getButterflyPassState(0.9, reducedPass).cameraPosition);
   assert.equal(getButterflyPassState(0.95, reducedPass).caseThreeReveal, 1);
   assert.equal(getButterflyPassState(0.5, reducedPass).gather, 0);
+});
+
+test("the butterfly flies fast and banks through its turns, then comes to rest", () => {
+  let fastest = 0;
+  let steepestBank = 0;
+  for (let progress = 0.22; progress <= 0.66; progress += 0.005) {
+    const state = getButterflyPassState(progress, desktop);
+    fastest = Math.max(fastest, state.butterflySpeed);
+    steepestBank = Math.max(steepestBank, Math.abs(state.butterflyBank));
+  }
+  assert.ok(fastest > 0.6, `top speed ${fastest}`);
+  assert.ok(steepestBank > 0.15, `steepest bank ${steepestBank}`);
+  const landed = getButterflyPassState(0.8, desktop);
+  assert.equal(landed.butterflySpeed, 0);
+  assert.equal(landed.cameraRoll, 0);
 });
