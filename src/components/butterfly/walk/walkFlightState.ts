@@ -342,33 +342,31 @@ export type MeadowPassState = ButterflyShapeState & {
 };
 
 export const MEADOW_NEAR_Z = -30;
-export const MEADOW_FAR_Z = -100;
+export const MEADOW_FAR_Z = -66;
 const MEADOW_X = CASE_THREE_SCREEN[0];
 
 // Camera: holds while case 03 folds, drops low over the road and follows the
 // butterfly along it, then eases to a stop above the meadow.
-const MEADOW_TIMES = [0, 0.12, 0.24, 0.4, 0.6, 0.8, 1];
+const MEADOW_TIMES = [0, 0.12, 0.24, 0.45, 0.7, 1];
 const MEADOW_KNOTS: Vec3[] = [
   CASE_THREE_PORTAL,
   [MEADOW_X, 1.72, -29.6],
-  [MEADOW_X, 1.55, -30.6],
-  [MEADOW_X + 0.3, 1.4, -37],
-  [MEADOW_X - 0.3, 1.35, -49],
-  [MEADOW_X + 0.2, 1.35, -61],
-  [MEADOW_X, 1.45, -69.5],
+  [MEADOW_X, 1.5, -30.6],
+  [MEADOW_X + 0.3, 1.35, -38],
+  [MEADOW_X - 0.2, 1.3, -46],
+  [MEADOW_X, 1.4, -52],
 ];
 
 // The butterfly bursts out of case 03, dips low over the road, weaves along it
 // and comes to hover ahead of the camera.
 const MEADOW_FLIGHT: Flight = {
-  times: [0.16, 0.3, 0.45, 0.6, 0.8, 1],
+  times: [0.16, 0.3, 0.5, 0.75, 1],
   knots: [
     [MEADOW_X, LIGHT_Y, -31.9],
     [MEADOW_X + 0.4, 1.2, -36.5],
-    [MEADOW_X - 0.4, 0.9, -43],
-    [MEADOW_X + 0.5, 1.0, -55],
-    [MEADOW_X - 0.2, 0.95, -66],
-    [MEADOW_X, 1.0, -74],
+    [MEADOW_X - 0.4, 0.95, -44],
+    [MEADOW_X + 0.3, 1.0, -51],
+    [MEADOW_X, 1.0, -56],
   ],
 };
 
@@ -377,18 +375,18 @@ export function getMeadowPassState(progress: number, options: WalkFlightOptions)
   const screenDissolve = smooth(progress, 0.11, 0.15);
   const gather = smooth(progress, 0.13, 0.26);
   const roadReveal = smooth(progress, 0.1, 0.28);
-  const processReveal = smooth(progress, 0.86, 0.98);
+  const processReveal = smooth(progress, 0.82, 0.96);
   const flight = flightKinematics(progress, MEADOW_FLIGHT);
   // The grass wave starts as soon as the butterfly is out and runs on ahead
   // along the road, so the road turns green early in the flight.
-  const grassFront = lerp(MEADOW_NEAR_Z + 4, MEADOW_FAR_Z - 8, smooth(progress, 0.16, 0.55));
+  const grassFront = lerp(MEADOW_NEAR_Z + 4, MEADOW_FAR_Z - 8, smooth(progress, 0.16, 0.45));
   const common = {
     collapse, screenDissolve, gather, roadReveal, processReveal,
     land: 0,
     vanish: 0,
     warmth: 1,
     grassFront,
-    grassAll: smooth(progress, 0.5, 0.62),
+    grassAll: smooth(progress, 0.4, 0.5),
     butterflyPosition: flight.position,
     butterflyHeading: flight.heading,
     butterflySpeed: flight.speed,

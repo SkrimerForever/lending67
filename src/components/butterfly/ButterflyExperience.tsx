@@ -580,7 +580,7 @@ export function ButterflyExperience() {
       scrollTrigger: {
         trigger: shell,
         start: () => `top+=${storyScrollDistance() + window.innerHeight * 10.6} top`,
-        end: () => `top+=${storyScrollDistance() + window.innerHeight * 14.6} top`,
+        end: () => `top+=${storyScrollDistance() + window.innerHeight * 13.2} top`,
         scrub: 0.8,
         invalidateOnRefresh: true,
       },
