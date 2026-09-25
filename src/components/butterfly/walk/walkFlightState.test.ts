@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { CASE_THREE_SCREEN, getButterflyPassState, getWalkFlightState, LIGHT_Z, PORTAL_DISTANCE, WALK_END, WALK_START } from "./walkFlightState.ts";
+import { CASE_THREE_PORTAL, CASE_THREE_SCREEN, getButterflyPassState, getMeadowPassState, MEADOW_FAR_Z, MEADOW_NEAR_Z, getWalkFlightState, LIGHT_Z, PORTAL_DISTANCE, WALK_END, WALK_START } from "./walkFlightState.ts";
 
 const desktop = { reducedMotion: false, narrow: false };
 const narrow = { reducedMotion: false, narrow: true };
@@ -189,4 +189,47 @@ test("the camera rises above the field and flies on, without backing off first",
     assert.ok(z <= start[2] + 0.6, `camera backs off at ${progress}`);
   }
   assert.ok(highest > 4.5, `highest ${highest}`);
+});
+
+test("the meadow pass starts on the full-screen case 03 pose", () => {
+  assert.equal(getMeadowPassState(0, desktop).active, false);
+  assert.ok(distance(getMeadowPassState(0.0001, desktop).cameraPosition, CASE_THREE_PORTAL) < 0.01);
+  assert.ok(distance(getButterflyPassState(1, desktop).cameraPosition, CASE_THREE_PORTAL) < 1e-9);
+});
+
+test("case 03 folds away before the butterfly flies again", () => {
+  const folded = getMeadowPassState(0.15, desktop);
+  assert.ok(folded.collapse[0] < 0.05 && folded.collapse[1] < 0.05);
+  assert.equal(folded.screenDissolve, 1);
+  assert.equal(getMeadowPassState(0.26, desktop).gather, 1);
+});
+
+test("the road turns into one grass road early in the flight", () => {
+  const bare = getMeadowPassState(0.15, desktop);
+  assert.ok(bare.grassFront > MEADOW_NEAR_Z, "no grass before the butterfly is out");
+  assert.equal(bare.grassAll, 0);
+  const growing = getMeadowPassState(0.35, desktop);
+  assert.ok(growing.grassFront < MEADOW_NEAR_Z && growing.grassFront > MEADOW_FAR_Z, "the wave is on the road");
+  assert.ok(growing.grassFront < growing.cameraPosition[2], "the wave runs ahead of the camera");
+  assert.equal(getMeadowPassState(0.62, desktop).grassAll, 1);
+});
+
+test("the camera flies low over the road with the butterfly ahead of it", () => {
+  for (let progress = 0.3; progress <= 1; progress += 0.01) {
+    const state = getMeadowPassState(progress, desktop);
+    assert.ok(state.cameraPosition[1] < 1.6, `camera low at ${progress}`);
+    assert.ok(state.butterflyPosition[2] < state.cameraPosition[2], `butterfly ahead at ${progress}`);
+  }
+});
+
+test("meadow camera travel is continuous and block 04 opens at the end", () => {
+  let previous = getMeadowPassState(0.001, desktop);
+  for (let progress = 0.002; progress <= 1; progress += 0.001) {
+    const next = getMeadowPassState(progress, desktop);
+    assert.ok(distance(next.cameraPosition, previous.cameraPosition) < 0.2, `camera jumps at ${progress}`);
+    assert.ok(distance(next.cameraTarget, previous.cameraTarget) < 0.3, `view jumps at ${progress}`);
+    previous = next;
+  }
+  assert.equal(getMeadowPassState(0.8, desktop).processReveal, 0);
+  assert.equal(getMeadowPassState(1, desktop).processReveal, 1);
 });

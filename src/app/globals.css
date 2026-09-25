@@ -14,7 +14,7 @@ html, body { width: 100%; min-height: 100%; margin: 0; background: #000; }
 html { scroll-behavior: smooth; }
 body { overflow-x: hidden; }
 button, input { font: inherit; }
-.study-shell { position: relative; width: 100%; height: 3300svh; background: #020202; }
+.study-shell { position: relative; width: 100%; height: 3700svh; background: #020202; }
 .hero-stage { position: sticky; top: 0; width: 100%; height: 100svh; overflow: hidden; background: #020202; }
 .canvas-mount, .canvas-mount canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .hero-plane {
@@ -1402,9 +1402,34 @@ button, input { font: inherit; }
   .loading-line { transition-duration: 160ms; }
   .loading-line__fill { box-shadow: none; }
   .loading-line__fill::after { box-shadow: 0 0 4px rgba(255, 255, 255, 0.3); }
-  .study-shell { height: 3300svh; }
+  .study-shell { height: 3700svh; }
 }
 
+/* Block 04 opens over the meadow: no backdrop, the world stays visible. */
+.process-stub {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(28px, 4.6vh, 54px) clamp(20px, 2.35vw, 42px) clamp(40px, 9vh, 110px);
+  opacity: 0;
+  pointer-events: none;
+  will-change: opacity;
+}
+.process-stub__index {
+  color: #858d8d;
+  font: 600 10px Arial, sans-serif;
+  letter-spacing: 0.2em;
+}
+.process-stub__title {
+  margin: 0;
+  color: #e1e5e4;
+  font: 1000 clamp(28px, 3.2vw, 56px)/0.92 "Martian Grotesk UltraExpanded", sans-serif;
+  letter-spacing: -0.055em;
+  text-transform: uppercase;
+}
 /* Case 03 lights up on its screen in the dark and is flown into full-screen. */
 .case-three {
   position: absolute;

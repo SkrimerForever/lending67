@@ -10,9 +10,10 @@ import { HeroStory } from "./HeroStory";
 import { LoadingLine } from "./LoadingLine";
 import { getPerformanceProfile, type PerformanceProfile } from "./performance-profile";
 import { SecondCaseStub } from "./SecondCaseStub";
+import { ProcessStub } from "./ProcessStub";
 import { ThirdCase } from "./ThirdCase";
 import { createWalkScene } from "./walk/createWalkScene";
-import { getButterflyPassState, getWalkFlightState } from "./walk/walkFlightState";
+import { getButterflyPassState, getMeadowPassState, getWalkFlightState } from "./walk/walkFlightState";
 
 const FLOW_PROMPT = "Получить сообщение → обработать AI → отправить в Telegram";
 
@@ -423,6 +424,8 @@ export function ButterflyExperience() {
   const caseTwoRef = useRef<HTMLElement>(null);
   const caseThreeRef = useRef<HTMLElement>(null);
   const passRef = useRef({ value: 0 });
+  const meadowRef = useRef({ value: 0 });
+  const processRef = useRef<HTMLElement>(null);
   const uniformsRef = useRef<Uniforms | null>(null);
   const progressRef = useRef({ value: 0 });
   const flightRef = useRef({ value: 0 });
@@ -572,6 +575,18 @@ export function ButterflyExperience() {
     });
     thirdCaseTimeline.to(passRef.current, { value: 1, duration: 1, ease: "none" });
 
+    // Case 03 → block 04 over the meadow, after a pause on case 03.
+    const meadowTimeline = gsap.timeline({
+      scrollTrigger: {
+        trigger: shell,
+        start: () => `top+=${storyScrollDistance() + window.innerHeight * 10.6} top`,
+        end: () => `top+=${storyScrollDistance() + window.innerHeight * 14.6} top`,
+        scrub: 0.8,
+        invalidateOnRefresh: true,
+      },
+    });
+    meadowTimeline.to(meadowRef.current, { value: 1, duration: 1, ease: "none" });
+
     const context = gsap.context(() => {
       const timeline = gsap.timeline({
         defaults: { ease: "power2.inOut" },
@@ -653,6 +668,8 @@ export function ButterflyExperience() {
       moexTimeline.kill();
       thirdCaseTimeline.scrollTrigger?.kill();
       thirdCaseTimeline.kill();
+      meadowTimeline.scrollTrigger?.kill();
+      meadowTimeline.kill();
     };
   }, []);
 
@@ -1742,7 +1759,12 @@ export function ButterflyExperience() {
         reducedMotion: reduceMotion.matches,
         narrow: camera.aspect < 0.9,
       });
-      walkScene.update(walkState, sceneTime, camera, passState);
+      const meadowProgress = meadowRef.current.value;
+      const meadowState = getMeadowPassState(meadowProgress, {
+        reducedMotion: reduceMotion.matches,
+        narrow: camera.aspect < 0.9,
+      });
+      walkScene.update(walkState, sceneTime, camera, passState, meadowState);
       // The case screens ride their light panels whenever the camera is away
       // from them: flying in to case 02, backing off it, flying in to case 03.
       const flying = !reduceMotion.matches;
@@ -1759,10 +1781,19 @@ export function ButterflyExperience() {
           ? walkScene.portalTransform(camera, stageSize.width, stageSize.height, "caseTwo", passState.collapse)
           : flying && inPortal ? project("caseTwo") : "none";
       }
+      const inMeadow = meadowState.active && meadowProgress < 1;
       if (caseThreeRef.current) {
-        const opacity = inPass ? passState.caseThreeReveal : passProgress >= 1 ? 1 : 0;
+        let opacity = inPass ? passState.caseThreeReveal : passProgress >= 1 ? 1 : 0;
+        if (inMeadow) opacity = 1 - meadowState.screenDissolve;
+        else if (meadowProgress >= 1) opacity = 0;
         caseThreeRef.current.style.opacity = String(opacity);
-        caseThreeRef.current.style.transform = flying && inPass && opacity > 0 ? project("caseThree") : "none";
+        // Case 03 folds away in place before the meadow, like case 02 did.
+        caseThreeRef.current.style.transform = flying && inMeadow && opacity > 0
+          ? walkScene.portalTransform(camera, stageSize.width, stageSize.height, "caseThree", meadowState.collapse)
+          : flying && inPass && opacity > 0 ? project("caseThree") : "none";
+      }
+      if (processRef.current) {
+        processRef.current.style.opacity = String(meadowProgress >= 1 ? 1 : meadowState.processReveal);
       }
       renderer.render(scene, camera);
     };
@@ -1828,6 +1859,7 @@ export function ButterflyExperience() {
 
         <SecondCaseStub veilRef={walkVeilRef} stubRef={caseTwoRef} />
         <ThirdCase sectionRef={caseThreeRef} />
+        <ProcessStub sectionRef={processRef} />
 
         <LoadingLine progress={loadingProgress} complete={loadingComplete} />
       </div>

@@ -163,22 +163,16 @@ export function getWalkFlightState(scroll: number, options: WalkFlightOptions): 
   };
 }
 
-// Case 02 → case 03, driven by its own 0..1 progress. The case 02 screen
-// folds away in place like a switched-off set (to a line, then to a point),
-// the point bursts into the butterfly from the opening, the camera rises and
-// flies on over the night field with it to the case 03 screen, the butterfly
-// spreads out over that screen, and the camera flies in.
-export type ButterflyPassState = {
+// The butterfly that carries the story between cases. Both transitions below
+// fold the current case screen away in place (to a line, then a point), burst
+// that point into the butterfly from the opening and fly on with it.
+export type ButterflyShapeState = {
   active: boolean;
-  cameraPosition: Vec3;
-  cameraTarget: Vec3;
-  // Width and height scale of the case 02 screen as it folds away (1 → ~0).
+  // Width and height scale of the screen it bursts from, as it folds (1 → ~0).
   collapse: [number, number];
-  // Case 02 DOM fades once it has folded to a point (0 → 1).
-  screenDissolve: number;
-  // Points leave the case 02 screen and form the butterfly (0 → 1, staggered per point).
+  // Points leave that screen and form the butterfly (0 → 1, staggered per point).
   gather: number;
-  // Points leave the butterfly and spread over the case 03 screen (0 → 1, staggered).
+  // Points leave the butterfly and spread over the next screen (0 → 1, staggered).
   land: number;
   butterflyPosition: Vec3;
   // Unit direction of flight.
@@ -187,10 +181,64 @@ export type ButterflyPassState = {
   butterflySpeed: number;
   // Roll into turns, in radians (positive banks right).
   butterflyBank: number;
+  // A faint warmth on the wing tips — the first colour on the site.
+  warmth: number;
+  // The butterfly's points fade out (0 → 1) once it has become the next screen.
+  vanish: number;
+};
+
+type Flight = { times: number[]; knots: Vec3[] };
+
+const normalize = (v: Vec3): Vec3 => {
+  const length = Math.hypot(...v) || 1;
+  return v.map((value) => value / length) as Vec3;
+};
+
+// Where the butterfly is, which way it heads, how fast it goes and how far it
+// banks, all from scroll so that every frame reverses exactly.
+function flightKinematics(progress: number, { times, knots }: Flight) {
+  const start = times[0];
+  const end = times[times.length - 1];
+  const at = (t: number) => cameraOnPath(t, knots, times);
+  const headingAt = (t: number): Vec3 => {
+    const clamped = Math.min(end - 0.012, Math.max(start, t));
+    const ahead = at(clamped + 0.012);
+    const here = at(clamped);
+    return normalize([ahead[0] - here[0], ahead[1] - here[1], ahead[2] - here[2]]);
+  };
+  const step = 0.006;
+  const before = at(Math.max(start, progress - step));
+  const after = at(Math.min(end, progress + step));
+  const flying = progress > start && progress < end ? 1 : 0;
+  const pace = Math.hypot(after[0] - before[0], after[1] - before[1], after[2] - before[2]) / (2 * step);
+  // Turning right (heading swinging towards +x) banks right.
+  const turn = headingAt(progress + 0.03)[0] - headingAt(progress - 0.03)[0];
+  return {
+    position: at(progress),
+    heading: headingAt(progress),
+    speed: flying * Math.min(1, pace / 60),
+    bank: Math.max(-0.7, Math.min(0.7, turn * 1.6)) * flying,
+    ahead: (lead: number) => at(Math.min(end, progress + lead)),
+  };
+}
+
+// A case screen folds away where it stands: to a glowing line, then a point.
+const foldAway = (progress: number): [number, number] => [
+  1 - 0.99 * smooth(progress, 0.07, 0.14),
+  1 - 0.985 * smooth(progress, 0.01, 0.08),
+];
+
+// Case 02 → case 03, driven by its own 0..1 progress. Case 02 folds away, the
+// butterfly bursts out, the camera rises and flies on over the night field with
+// it to the case 03 screen, the butterfly spreads out over that screen, and
+// the camera flies in.
+export type ButterflyPassState = ButterflyShapeState & {
+  cameraPosition: Vec3;
+  cameraTarget: Vec3;
   // The camera leans a little with the butterfly.
   cameraRoll: number;
-  // The first colour on the site: a faint warmth on the wing tips.
-  warmth: number;
+  // Case 02 DOM fades once it has folded to a point (0 → 1).
+  screenDissolve: number;
   // Glow of the case 03 screen in the dark, then the DOM case on it.
   caseThreeLight: number;
   caseThreeReveal: number;
@@ -199,7 +247,7 @@ export type ButterflyPassState = {
 // The case 03 screen stands further on, off to the right, facing back along +Z.
 export const CASE_THREE_SCREEN: Vec3 = [6, LIGHT_Y, -32];
 const PORTAL: Vec3 = [0, LIGHT_Y, LIGHT_Z + PORTAL_DISTANCE];
-const CASE_THREE_PORTAL: Vec3 = [CASE_THREE_SCREEN[0], LIGHT_Y, CASE_THREE_SCREEN[2] + PORTAL_DISTANCE];
+export const CASE_THREE_PORTAL: Vec3 = [CASE_THREE_SCREEN[0], LIGHT_Y, CASE_THREE_SCREEN[2] + PORTAL_DISTANCE];
 
 // Camera: holds while case 02 folds away, rises above the field, flies on
 // high behind the butterfly, then comes down onto the case 03 screen.
@@ -219,54 +267,34 @@ const NARROW_PASS_KNOTS: Vec3[] = PASS_KNOTS.map(([x, y, z], i) =>
 
 // The butterfly bursts out of the folded screen, climbs to the camera's
 // height, arcs to the right and dives onto the case 03 screen.
-const FLIGHT_START = 0.16;
-const FLIGHT_END = 0.66;
-const FLIGHT_TIMES = [FLIGHT_START, 0.28, 0.4, 0.52, 0.6, FLIGHT_END];
-const FLIGHT_KNOTS: Vec3[] = [
-  [0, LIGHT_Y, -13.9],
-  [0.8, 3.2, -16.5],
-  [2.4, 4.4, -20],
-  [4.2, 3.0, -24.5],
-  [5.6, 2.1, -29],
-  [6, LIGHT_Y, -31.6],
-];
-
-const flight = (at: number) => cameraOnPath(at, FLIGHT_KNOTS, FLIGHT_TIMES);
-const normalize = (v: Vec3): Vec3 => {
-  const length = Math.hypot(...v) || 1;
-  return v.map((value) => value / length) as Vec3;
-};
-const headingAt = (at: number): Vec3 => {
-  const t = Math.min(FLIGHT_END - 0.012, Math.max(FLIGHT_START, at));
-  const ahead = flight(t + 0.012);
-  const here = flight(t);
-  return normalize([ahead[0] - here[0], ahead[1] - here[1], ahead[2] - here[2]]);
+const PASS_FLIGHT: Flight = {
+  times: [0.16, 0.28, 0.4, 0.52, 0.6, 0.66],
+  knots: [
+    [0, LIGHT_Y, -13.9],
+    [0.8, 3.2, -16.5],
+    [2.4, 4.4, -20],
+    [4.2, 3.0, -24.5],
+    [5.6, 2.1, -29],
+    [6, LIGHT_Y, -31.6],
+  ],
 };
 
 export function getButterflyPassState(progress: number, options: WalkFlightOptions): ButterflyPassState {
-  const collapse: [number, number] = [
-    1 - 0.99 * smooth(progress, 0.07, 0.14),
-    1 - 0.985 * smooth(progress, 0.01, 0.08),
-  ];
+  const collapse = foldAway(progress);
   const gather = smooth(progress, 0.13, 0.26);
   const land = smooth(progress, 0.62, 0.76);
   const screenDissolve = smooth(progress, 0.11, 0.15);
   const caseThreeLight = smooth(progress, 0.5, 0.66);
   const caseThreeReveal = smooth(progress, 0.74, 0.86);
   const warmth = smooth(progress, 0.2, 0.34) * (1 - 0.6 * land);
-  const butterflyPosition = flight(progress);
-  const butterflyHeading = headingAt(progress);
-  const step = 0.006;
-  const before = flight(Math.max(FLIGHT_START, progress - step));
-  const after = flight(Math.min(FLIGHT_END, progress + step));
-  const flying = progress > FLIGHT_START && progress < FLIGHT_END ? 1 : 0;
-  const butterflySpeed = flying * Math.min(1, Math.hypot(after[0] - before[0], after[1] - before[1], after[2] - before[2]) / (2 * step) / 60);
-  // Turning right (heading swinging towards +x) banks right.
-  const turn = headingAt(progress + 0.03)[0] - headingAt(progress - 0.03)[0];
-  const butterflyBank = Math.max(-0.7, Math.min(0.7, turn * 1.6)) * flying;
+  const flight = flightKinematics(progress, PASS_FLIGHT);
   const common = {
-    collapse, screenDissolve, gather, land, butterflyPosition, butterflyHeading, butterflySpeed, butterflyBank,
-    warmth, caseThreeLight, caseThreeReveal,
+    collapse, screenDissolve, gather, land, warmth, caseThreeLight, caseThreeReveal,
+    vanish: caseThreeReveal,
+    butterflyPosition: flight.position,
+    butterflyHeading: flight.heading,
+    butterflySpeed: flight.speed,
+    butterflyBank: flight.bank,
   };
 
   if (progress <= 0) {
@@ -285,8 +313,112 @@ export function getButterflyPassState(progress: number, options: WalkFlightOptio
   // straight onto the case 03 screen for the fly-in.
   const follow = smooth(progress, 0.12, 0.24) * (1 - smooth(progress, 0.62, 0.74));
   const screen: Vec3 = progress > 0.5 ? CASE_THREE_SCREEN : [0, LIGHT_Y, LIGHT_Z];
-  const aim = flight(Math.min(FLIGHT_END, progress + 0.04));
-  const chase = [0, 1, 2].map((axis) => lerp(butterflyPosition[axis], aim[axis], 0.45)) as Vec3;
+  const aim = flight.ahead(0.04);
+  const chase = [0, 1, 2].map((axis) => lerp(flight.position[axis], aim[axis], 0.45)) as Vec3;
   const cameraTarget = [0, 1, 2].map((axis) => lerp(screen[axis], chase[axis], follow)) as Vec3;
-  return { ...common, active: true, cameraPosition, cameraTarget, cameraRoll: butterflyBank * 0.25 * follow };
+  return { ...common, active: true, cameraPosition, cameraTarget, cameraRoll: flight.bank * 0.25 * follow };
+}
+
+// Case 03 → block 04 (process), driven by its own 0..1 progress. Case 03 folds
+// away, the butterfly bursts out again and flies on low along a road of
+// points; soon after, grass grows up out of that road, a wave running on
+// ahead, until the whole road is one muted green grass road. Block 04 opens
+// over it.
+export type MeadowPassState = ButterflyShapeState & {
+  cameraPosition: Vec3;
+  cameraTarget: Vec3;
+  cameraRoll: number;
+  // Case 03 DOM fades once it has folded to a point (0 → 1).
+  screenDissolve: number;
+  // The road fades in beneath the flight (0 → 1).
+  roadReveal: number;
+  // Grass has grown everywhere behind this depth (walk-space Z); the front
+  // sweeps along the road ahead of the camera.
+  grassFront: number;
+  // Grass everywhere, road or not (0 → 1), to finish the meadow.
+  grassAll: number;
+  // Block 04 opens over the meadow (0 → 1).
+  processReveal: number;
+};
+
+export const MEADOW_NEAR_Z = -30;
+export const MEADOW_FAR_Z = -100;
+const MEADOW_X = CASE_THREE_SCREEN[0];
+
+// Camera: holds while case 03 folds, drops low over the road and follows the
+// butterfly along it, then eases to a stop above the meadow.
+const MEADOW_TIMES = [0, 0.12, 0.24, 0.4, 0.6, 0.8, 1];
+const MEADOW_KNOTS: Vec3[] = [
+  CASE_THREE_PORTAL,
+  [MEADOW_X, 1.72, -29.6],
+  [MEADOW_X, 1.55, -30.6],
+  [MEADOW_X + 0.3, 1.4, -37],
+  [MEADOW_X - 0.3, 1.35, -49],
+  [MEADOW_X + 0.2, 1.35, -61],
+  [MEADOW_X, 1.45, -69.5],
+];
+
+// The butterfly bursts out of case 03, dips low over the road, weaves along it
+// and comes to hover ahead of the camera.
+const MEADOW_FLIGHT: Flight = {
+  times: [0.16, 0.3, 0.45, 0.6, 0.8, 1],
+  knots: [
+    [MEADOW_X, LIGHT_Y, -31.9],
+    [MEADOW_X + 0.4, 1.2, -36.5],
+    [MEADOW_X - 0.4, 0.9, -43],
+    [MEADOW_X + 0.5, 1.0, -55],
+    [MEADOW_X - 0.2, 0.95, -66],
+    [MEADOW_X, 1.0, -74],
+  ],
+};
+
+export function getMeadowPassState(progress: number, options: WalkFlightOptions): MeadowPassState {
+  const collapse = foldAway(progress);
+  const screenDissolve = smooth(progress, 0.11, 0.15);
+  const gather = smooth(progress, 0.13, 0.26);
+  const roadReveal = smooth(progress, 0.1, 0.28);
+  const processReveal = smooth(progress, 0.86, 0.98);
+  const flight = flightKinematics(progress, MEADOW_FLIGHT);
+  // The grass wave starts as soon as the butterfly is out and runs on ahead
+  // along the road, so the road turns green early in the flight.
+  const grassFront = lerp(MEADOW_NEAR_Z + 4, MEADOW_FAR_Z - 8, smooth(progress, 0.16, 0.55));
+  const common = {
+    collapse, screenDissolve, gather, roadReveal, processReveal,
+    land: 0,
+    vanish: 0,
+    warmth: 1,
+    grassFront,
+    grassAll: smooth(progress, 0.5, 0.62),
+    butterflyPosition: flight.position,
+    butterflyHeading: flight.heading,
+    butterflySpeed: flight.speed,
+    butterflyBank: flight.bank,
+  };
+  const screen: Vec3 = [...CASE_THREE_SCREEN];
+
+  if (progress <= 0) {
+    return { ...common, active: false, cameraPosition: [...CASE_THREE_PORTAL], cameraTarget: screen, cameraRoll: 0 };
+  }
+  if (options.reducedMotion) {
+    // No flight: case 03 crossfades straight into block 04.
+    return {
+      ...common, active: true, cameraPosition: [...CASE_THREE_PORTAL], cameraTarget: screen, cameraRoll: 0,
+      collapse: [1, 1], gather: 0, roadReveal: 0, butterflySpeed: 0, butterflyBank: 0, grassAll: 0,
+    };
+  }
+  const knots = options.narrow
+    ? MEADOW_KNOTS.map(([x, y, z], i) => (i === 0 ? [x, y, z] : [MEADOW_X + (x - MEADOW_X) * 0.6, y, z + 0.6]) as Vec3)
+    : MEADOW_KNOTS;
+  const cameraPosition = cameraOnPath(progress, knots, MEADOW_TIMES);
+  // Look at case 03 while it folds, then chase the butterfly, aiming a little
+  // ahead and low so the road (and the grass) fills the lower frame.
+  const follow = smooth(progress, 0.12, 0.24);
+  const aim = flight.ahead(0.05);
+  const chase: Vec3 = [
+    lerp(flight.position[0], aim[0], 0.45),
+    lerp(flight.position[1], aim[1], 0.45) - 0.6,
+    lerp(flight.position[2], aim[2], 0.45),
+  ];
+  const cameraTarget = [0, 1, 2].map((axis) => lerp(screen[axis], chase[axis], follow)) as Vec3;
+  return { ...common, active: true, cameraPosition, cameraTarget, cameraRoll: flight.bank * 0.2 * follow };
 }

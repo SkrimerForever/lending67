@@ -1,9 +1,9 @@
 import * as THREE from "three";
-import { CASE_THREE_SCREEN, LIGHT_Y, LIGHT_Z, PORTAL_HEIGHT, type ButterflyPassState } from "./walkFlightState";
+import { PORTAL_HEIGHT, type ButterflyShapeState, type Vec3 } from "./walkFlightState";
 
 export type PassButterfly = {
   points: THREE.Points;
-  update(state: ButterflyPassState, time: number): void;
+  update(state: ButterflyShapeState, time: number): void;
   setAspect(aspect: number): void;
   setPixelRatio(value: number): void;
   dispose(): void;
@@ -45,9 +45,9 @@ const vertexShader = /* glsl */ `
     float gather = ease(uGather * 1.4 - aSeed * 0.4);
     float land = ease(uLand * 1.4 - aSeed * 0.4);
 
-    // Points hold the folding case 02 screen: a line, then a point.
-    vec3 onCaseTwo = uFrom + vec3(aRect * uPanelSize * uCollapse, 0.03);
-    vec3 onCaseThree = uTo + vec3(aRect * uPanelSize, 0.03);
+    // Points hold the folding screen they burst from: a line, then a point.
+    vec3 onFrom = uFrom + vec3(aRect * uPanelSize * uCollapse, 0.03);
+    vec3 onTo = uTo + vec3(aRect * uPanelSize, 0.03);
 
     // Top view butterfly: x across the wings, z along the body (head at -z).
     // The wings rise and fall about the body axis, and the body flies pitched
@@ -68,8 +68,8 @@ const vertexShader = /* glsl */ `
     onButterfly -= uHeading * trail * uSpeed * (0.4 + 1.6 * fract(aSeed * 37.0));
     onButterfly.y -= trail * uSpeed * 0.12;
 
-    vec3 point = mix(onCaseTwo, onButterfly, gather);
-    point = mix(point, onCaseThree, land);
+    vec3 point = mix(onFrom, onButterfly, gather);
+    point = mix(point, onTo, land);
     // Streams arc slightly on the way, like the opening flight.
     point.y += (sin(gather * 3.14159) + sin(land * 3.14159)) * (0.12 + aSeed * 0.22);
     point.x += sin(gather * 3.14159) * (aSeed - 0.5) * 0.5;
@@ -128,7 +128,9 @@ function sampleButterfly(image: HTMLImageElement, count: number) {
   return wing;
 }
 
-export function createPassButterfly(count: number, pixelRatio: number): PassButterfly {
+// from: centre of the case screen the butterfly bursts out of; to: centre of
+// the screen it spreads over when it lands (if it lands).
+export function createPassButterfly(count: number, pixelRatio: number, from: Vec3, to: Vec3): PassButterfly {
   const geometry = new THREE.BufferGeometry();
   const rect = new Float32Array(count * 2);
   const seed = new Float32Array(count);
@@ -153,8 +155,8 @@ export function createPassButterfly(count: number, pixelRatio: number): PassButt
     uWarmth: { value: 0 },
     uPanelSize: { value: new THREE.Vector2(3.2, PORTAL_HEIGHT) },
     uCollapse: { value: new THREE.Vector2(1, 1) },
-    uFrom: { value: new THREE.Vector3(0, LIGHT_Y, LIGHT_Z) },
-    uTo: { value: new THREE.Vector3(...CASE_THREE_SCREEN) },
+    uFrom: { value: new THREE.Vector3(...from) },
+    uTo: { value: new THREE.Vector3(...to) },
     uButterfly: { value: new THREE.Matrix4() },
     uHeading: { value: new THREE.Vector3(0, 0, -1) },
     uSpeed: { value: 0 },
@@ -190,7 +192,7 @@ export function createPassButterfly(count: number, pixelRatio: number): PassButt
   return {
     points,
     update(state, time) {
-      const fade = 1 - state.caseThreeReveal;
+      const fade = 1 - state.vanish;
       // The points light up as the screen folds, so the line and the point
       // it folds into glow before they burst into the butterfly.
       const appear = 1 - state.collapse[1];
