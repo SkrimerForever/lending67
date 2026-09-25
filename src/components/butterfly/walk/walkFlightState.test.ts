@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getWalkFlightState, LIGHT_Z, PORTAL_DISTANCE, WALK_END, WALK_START } from "./walkFlightState.ts";
+import { getDawnState, getWalkFlightState, LIGHT_Z, PORTAL_DISTANCE, WALK_END, WALK_START } from "./walkFlightState.ts";
 
 const desktop = { reducedMotion: false, narrow: false };
 const narrow = { reducedMotion: false, narrow: true };
@@ -104,4 +104,37 @@ test("reduced motion shows three stable states", () => {
   assert.deepEqual(light.cameraPosition, first.cameraPosition);
   assert.equal(getWalkFlightState(2.21, reduced).caseReveal, 1);
   assert.equal(first.dustStreak, 0);
+});
+
+test("dawn starts and ends exactly on the full-screen case pose", () => {
+  const end = getWalkFlightState(WALK_END, desktop).cameraPosition;
+  const start = getDawnState(0.0001, desktop).cameraPosition;
+  assert.ok(Math.hypot(start[0] - end[0], start[1] - end[1], start[2] - end[2]) < 0.01);
+  assert.deepEqual(getDawnState(1, desktop).cameraPosition, end);
+  assert.equal(getDawnState(0, desktop).active, false);
+});
+
+test("dawn pulls back behind the walker before the colour comes", () => {
+  const wide = getDawnState(0.28, desktop);
+  assert.ok(wide.cameraPosition[2] > 2, "camera is back in the field, behind the walker");
+  assert.equal(wide.dawn, 0);
+  assert.equal(wide.screenMix, 0);
+  const risen = getDawnState(0.72, desktop);
+  assert.equal(risen.dawn, 1);
+  assert.equal(risen.screenMix, 1);
+});
+
+test("dawn camera travel is continuous", () => {
+  let previous = getDawnState(0.001, desktop).cameraPosition;
+  for (let progress = 0.002; progress <= 1; progress += 0.001) {
+    const next = getDawnState(progress, desktop).cameraPosition;
+    assert.ok(Math.hypot(next[0] - previous[0], next[1] - previous[1], next[2] - previous[2]) < 0.2);
+    previous = next;
+  }
+});
+
+test("reduced motion keeps the camera still through dawn", () => {
+  const reducedDawn = { reducedMotion: true, narrow: false };
+  assert.deepEqual(getDawnState(0.3, reducedDawn).cameraPosition, getDawnState(0.9, reducedDawn).cameraPosition);
+  assert.equal(getDawnState(0.9, reducedDawn).screenMix, 1);
 });

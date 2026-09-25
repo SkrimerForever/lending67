@@ -3,7 +3,8 @@ import { LIGHT_Y, LIGHT_Z, PORTAL_HEIGHT, type WalkFlightState } from "./walkFli
 
 export type WalkEnvironment = {
   group: THREE.Group;
-  update(state: WalkFlightState, time: number): void;
+  // dawn 0..1: stars fade out, ground, dust and light take on dawn colours.
+  update(state: WalkFlightState, time: number, dawn?: number): void;
   setPixelRatio(value: number): void;
   setAspect(aspect: number): void;
   dispose(): void;
@@ -78,12 +79,20 @@ function sampleStars(count: number) {
 }
 
 const pointFragment = /* glsl */ `
+  uniform vec3 uTint;
   varying float vAlpha;
   void main() {
     float distanceToCenter = length(gl_PointCoord - 0.5);
-    gl_FragColor = vec4(vec3(0.84, 0.88, 0.9), (1.0 - smoothstep(0.2, 0.5, distanceToCenter)) * vAlpha);
+    gl_FragColor = vec4(uTint, (1.0 - smoothstep(0.2, 0.5, distanceToCenter)) * vAlpha);
   }
 `;
+
+// Night is silver; dawn warms the ground and light, and cools the dust a little.
+const SILVER = new THREE.Color(0.84, 0.88, 0.9);
+const DAWN_GROUND = new THREE.Color(1.0, 0.79, 0.66);
+const DAWN_DUST = new THREE.Color(0.92, 0.84, 0.92);
+const NIGHT_LIGHT = new THREE.Color(0.804, 0.855, 0.886);
+const DAWN_LIGHT = new THREE.Color(1.0, 0.86, 0.74);
 
 export function createWalkEnvironment(
   counts: { ground: number; dust: number },
@@ -95,7 +104,12 @@ export function createWalkEnvironment(
   const groundGeometry = new THREE.BufferGeometry();
   groundGeometry.setAttribute("position", new THREE.BufferAttribute(ground.positions, 3));
   groundGeometry.setAttribute("aSeed", new THREE.BufferAttribute(ground.seeds, 1));
-  const groundUniforms = { uReveal: { value: 0 }, uTime: { value: 0 }, uPixelRatio: { value: pixelRatio } };
+  const groundUniforms = {
+    uReveal: { value: 0 },
+    uTime: { value: 0 },
+    uPixelRatio: { value: pixelRatio },
+    uTint: { value: SILVER.clone() },
+  };
   const groundMaterial = new THREE.ShaderMaterial({
     uniforms: groundUniforms,
     vertexShader: /* glsl */ `
@@ -135,6 +149,7 @@ export function createWalkEnvironment(
     uStreak: { value: 0 },
     uTime: { value: 0 },
     uPixelRatio: { value: pixelRatio },
+    uTint: { value: SILVER.clone() },
   };
   const dustMaterial = new THREE.ShaderMaterial({
     uniforms: dustUniforms,
@@ -211,10 +226,14 @@ export function createWalkEnvironment(
   starPoints.frustumCulled = false;
   group.add(starPoints);
 
-  const lightUniforms = { uReveal: { value: 0 } };
+  const lightUniforms = { uReveal: { value: 0 }, uTint: { value: NIGHT_LIGHT.clone() } };
   // The panel is the case 02 screen: it takes the viewport's aspect so the DOM
   // case can be projected onto it and land full-screen at the end of the flight.
-  const panelUniforms = { uReveal: lightUniforms.uReveal, uSize: { value: new THREE.Vector2(3.2, PORTAL_HEIGHT) } };
+  const panelUniforms = {
+    uReveal: lightUniforms.uReveal,
+    uTint: lightUniforms.uTint,
+    uSize: { value: new THREE.Vector2(3.2, PORTAL_HEIGHT) },
+  };
   const panelGeometry = new THREE.PlaneGeometry(1, 1);
   const panelMaterial = new THREE.ShaderMaterial({
     uniforms: panelUniforms,
@@ -224,6 +243,7 @@ export function createWalkEnvironment(
     `,
     fragmentShader: /* glsl */ `
       uniform float uReveal;
+      uniform vec3 uTint;
       uniform vec2 uSize;
       varying vec2 vUv;
       void main() {
@@ -231,7 +251,7 @@ export function createWalkEnvironment(
         vec2 d = q - (uSize * 0.5 - 0.08);
         float edge = length(max(d, 0.0)) + min(max(d.x, d.y), 0.0);
         float body = 1.0 - smoothstep(-0.06, 0.08, edge);
-        gl_FragColor = vec4(vec3(0.804, 0.855, 0.886), body * uReveal);
+        gl_FragColor = vec4(uTint, body * uReveal);
       }
     `,
     transparent: true,
@@ -252,13 +272,14 @@ export function createWalkEnvironment(
     `,
     fragmentShader: /* glsl */ `
       uniform float uReveal;
+      uniform vec3 uTint;
       varying vec2 vUv;
       void main() {
         vec2 q = (vUv - 0.5) * vec2(2.4, 1.4);
         vec2 edge = abs(vUv - 0.5);
         float fade = (1.0 - smoothstep(0.32, 0.5, edge.x)) * (1.0 - smoothstep(0.28, 0.5, edge.y));
         float glow = exp(-dot(q, q) * 3.2) * 0.35 * fade;
-        gl_FragColor = vec4(vec3(0.804, 0.855, 0.886), glow * uReveal);
+        gl_FragColor = vec4(uTint, glow * uReveal);
       }
     `,
     transparent: true,
@@ -271,7 +292,7 @@ export function createWalkEnvironment(
 
   return {
     group,
-    update(state, time) {
+    update(state, time, dawn = 0) {
       groundUniforms.uReveal.value = state.groundReveal;
       groundUniforms.uTime.value = time;
       dustUniforms.uReveal.value = state.dustReveal;
@@ -279,9 +300,12 @@ export function createWalkEnvironment(
       dustUniforms.uTime.value = time;
       // The sky travels with the camera, so stars read as infinitely far away.
       starPoints.position.set(...state.cameraPosition);
-      starUniforms.uReveal.value = state.dustReveal;
+      starUniforms.uReveal.value = state.dustReveal * (1 - dawn);
       starUniforms.uTime.value = time;
       lightUniforms.uReveal.value = state.lightReveal;
+      groundUniforms.uTint.value.copy(SILVER).lerp(DAWN_GROUND, dawn * 0.85);
+      dustUniforms.uTint.value.copy(SILVER).lerp(DAWN_DUST, dawn * 0.7);
+      lightUniforms.uTint.value.copy(NIGHT_LIGHT).lerp(DAWN_LIGHT, dawn);
     },
     setPixelRatio(value) {
       groundUniforms.uPixelRatio.value = value;

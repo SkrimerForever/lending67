@@ -1405,7 +1405,7 @@ button, input { font: inherit; }
   .study-shell { height: 3300svh; }
 }
 
-/* Case 03 is revealed from under the ASCII transition glyphs. */
+/* Case 03 rises on the case screen at dawn and is flown into full-screen. */
 .case-three {
   position: absolute;
   z-index: 6;
@@ -1416,7 +1416,8 @@ button, input { font: inherit; }
   color: #15171b;
   background: radial-gradient(circle at 64% 43%, #fff 0, #fafbfe 42%, #edf0f5 100%);
   opacity: 0;
-  will-change: opacity;
+  transform-origin: 0 0;
+  will-change: opacity, transform;
   pointer-events: none;
 }
 .case-three::before {
@@ -1426,24 +1427,19 @@ button, input { font: inherit; }
   background: linear-gradient(90deg, rgba(236, 240, 246, .4), transparent 24%, transparent 78%, rgba(236, 240, 246, .4));
   pointer-events: none;
 }
-.ascii-transition {
+/* Dawn before case 03: a sky behind the particle world, lit from behind the
+   case screen (--sun-x / --sun-y follow it). Black night stays underneath. */
+.dawn-sky {
   position: absolute;
-  z-index: 7;
   inset: 0;
-  overflow: hidden;
-  perspective: 1200px;
+  opacity: 0;
   pointer-events: none;
+  background:
+    radial-gradient(ellipse 55% 40% at var(--sun-x, 50%) var(--sun-y, 45%),
+      rgba(255, 214, 180, 0.95) 0%, rgba(236, 160, 150, 0.55) 26%, rgba(150, 110, 150, 0.2) 52%, transparent 72%),
+    linear-gradient(180deg, #0c1122 0%, #1c2340 34%, #4a3b58 56%, #8a5f63 66%, #2a1d1c 78%, #070606 100%);
+  will-change: opacity;
 }
-.ascii-transition canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  visibility: hidden;
-}
-.ascii-transition__plane { will-change: transform; }
-/* Case 03 approaches as a lit screen in the dark. */
-.ascii-transition__plane--arrival { box-shadow: 0 0 140px 20px rgba(214, 224, 236, 0.28); }
 .case-three__frame {
   position: relative;
   display: grid;
