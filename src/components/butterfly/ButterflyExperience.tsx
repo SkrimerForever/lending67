@@ -5,7 +5,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import * as THREE from "three";
 import { ApproachScene } from "./ApproachScene";
-import { DOM_SWITCH } from "./ascii/asciiTransition";
+import { CASE_THREE_ARRIVED, CASE_TWO_COVERED } from "./ascii/asciiTransition";
 import { createAsciiTransition, type AsciiTransition } from "./ascii/createAsciiTransition";
 import { FlowArchitectCase } from "./FlowArchitectCase";
 import { HeroStory } from "./HeroStory";
@@ -424,7 +424,9 @@ export function ButterflyExperience() {
   const walkVeilRef = useRef<HTMLDivElement>(null);
   const caseTwoRef = useRef<HTMLElement>(null);
   const caseThreeRef = useRef<HTMLElement>(null);
-  const asciiCanvasRef = useRef<HTMLCanvasElement>(null);
+  const asciiSpaceRef = useRef<HTMLCanvasElement>(null);
+  const asciiPlaneARef = useRef<HTMLCanvasElement>(null);
+  const asciiPlaneBRef = useRef<HTMLCanvasElement>(null);
   const uniformsRef = useRef<Uniforms | null>(null);
   const progressRef = useRef({ value: 0 });
   const flightRef = useRef({ value: 0 });
@@ -566,22 +568,25 @@ export function ButterflyExperience() {
       scrollTrigger: {
         trigger: shell,
         start: () => `top+=${storyScrollDistance() + window.innerHeight * 6.0} top`,
-        end: () => `top+=${storyScrollDistance() + window.innerHeight * 9.4} top`,
+        end: () => `top+=${storyScrollDistance() + window.innerHeight * 11.4} top`,
         scrub: 0.8,
         invalidateOnRefresh: true,
       },
     });
     const caseTwo = caseTwoRef.current;
     const caseThree = caseThreeRef.current;
-    const asciiCanvas = asciiCanvasRef.current;
+    const asciiSpace = asciiSpaceRef.current;
+    const asciiPlaneA = asciiPlaneARef.current;
+    const asciiPlaneB = asciiPlaneBRef.current;
     let ascii: AsciiTransition | null = null;
     let sizeAscii: (() => void) | null = null;
-    if (reducedTransition || !caseTwo || !caseThree || !asciiCanvas) {
+    if (reducedTransition || !caseTwo || !caseThree || !asciiSpace || !asciiPlaneA || !asciiPlaneB) {
       thirdCaseTimeline.fromTo(select(".case-three"), { opacity: 0 }, { opacity: 1, duration: 1, ease: "none" });
     } else {
-      // Case 02 breaks into its own characters in black and white, a colour
-      // front scrambles them into case 03, and the glyphs fall away to reveal it.
-      const transition = createAsciiTransition(asciiCanvas, caseTwo, caseThree, {
+      // Case 02 breaks into its own characters in black and white, the camera
+      // turns away and flies through an ASCII starfield that gains colour, and
+      // case 03 flies in as a lit screen of characters that fall away to reveal it.
+      const transition = createAsciiTransition({ space: asciiSpace, planeA: asciiPlaneA, planeB: asciiPlaneB }, caseTwo, caseThree, {
         from: [11, 11, 11],
         to: [243, 245, 249],
       });
@@ -597,10 +602,9 @@ export function ButterflyExperience() {
         onUpdate: () => {
           const progress = asciiProgress.value;
           transition.render(progress);
-          // Swap the screens underneath the glyphs once every cell is opaque.
-          const switched = progress >= DOM_SWITCH;
-          caseTwo.style.visibility = switched ? "hidden" : "";
-          caseThree.style.opacity = switched ? "1" : "0";
+          // The real screens only change underneath fully opaque characters.
+          caseTwo.style.visibility = progress >= CASE_TWO_COVERED ? "hidden" : "";
+          caseThree.style.opacity = progress >= CASE_THREE_ARRIVED ? "1" : "0";
         },
       });
     }
@@ -1846,7 +1850,11 @@ export function ButterflyExperience() {
 
         <SecondCaseStub veilRef={walkVeilRef} stubRef={caseTwoRef} />
         <ThirdCase sectionRef={caseThreeRef} />
-        <canvas ref={asciiCanvasRef} className="ascii-transition" aria-hidden="true" />
+        <div className="ascii-transition" aria-hidden="true">
+          <canvas ref={asciiSpaceRef} className="ascii-transition__space" />
+          <canvas ref={asciiPlaneARef} className="ascii-transition__plane" />
+          <canvas ref={asciiPlaneBRef} className="ascii-transition__plane ascii-transition__plane--arrival" />
+        </div>
 
         <LoadingLine progress={loadingProgress} complete={loadingComplete} />
       </div>

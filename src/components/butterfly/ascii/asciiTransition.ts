@@ -3,27 +3,35 @@
 
 export type Rgb = [number, number, number];
 
-export type CellPhase = {
-  // The DOM screen underneath is replaced by this cell's glyph.
-  cover: number;
-  // The glyph morphs from case 02 into case 03 (scramble + colour front).
-  swap: number;
-  // The cell falls away and uncovers the real case 03 underneath.
-  reveal: number;
+// The flight, as fractions of the transition:
+//   0.00–0.19  case 02 rains into black-and-white characters (plane A)
+//   0.19–0.42  the camera turns right; plane A slides away and
+//              crumbles into star dust
+//   0.30–0.86  flight through an ASCII starfield; colour enters at 0.42–0.66
+//   0.60–0.88  case 03 flies in from the depth as a lit screen of characters
+//   0.88–1.00  its characters fall away and uncover the real case 03
+export const CASE_TWO_COVERED = 0.19;
+export const CASE_THREE_ARRIVED = 0.88;
+
+export type PlaneState = { visible: boolean; x: number; y: number; z: number; rotateY: number };
+
+export type FlightState = {
+  planeA: PlaneState;
+  planeB: PlaneState;
+  space: {
+    visible: boolean;
+    // Distance flown through the starfield, in star-depth units.
+    travel: number;
+    // 0 at rest, 1 at full speed: stretches stars into streaks.
+    speed: number;
+    // Camera yaw, 0..1: the whole sky swings left as the camera turns right.
+    turn: number;
+    colour: number;
+  };
 };
 
-// Between the last cover and the first reveal every cell is opaque, so the
-// DOM can swap case 02 for case 03 at this moment without a visible cut.
-export const DOM_SWITCH = 0.62;
-
-const COVER_SPREAD = 0.4;
-const COVER_LENGTH = 0.14;
-const SWAP_START = 0.3;
-const SWAP_SPREAD = 0.3;
-const SWAP_LENGTH = 0.14;
-const REVEAL_START = 0.76;
-const REVEAL_SPREAD = 0.18;
-const REVEAL_LENGTH = 0.06;
+export const STAR_DEPTH = 40;
+const TRAVEL = STAR_DEPTH * 2.2;
 
 // The colour wave starts where case 03 used to open as a lit door.
 export const WAVE_ORIGIN: [number, number] = [0.65, 0.45];
@@ -36,28 +44,74 @@ const smooth = (value: number, start: number, end: number) => {
   const t = clamp01((value - start) / (end - start));
   return t * t * (3 - 2 * t);
 };
+// Accelerates, cruises and brakes; its slope is the flight speed.
+const cruise = (value: number) => {
+  const t = clamp01((value - 0.3) / (0.86 - 0.3));
+  return t * t * t * (t * (t * 6 - 15) + 10);
+};
 
 export function hash(col: number, row: number, salt = 0) {
   const value = Math.sin(col * 127.1 + row * 311.7 + salt * 74.7) * 43758.5453;
   return value - Math.floor(value);
 }
 
-export function cellPhase(progress: number, col: number, row: number, cols: number, rows: number): CellPhase {
-  // Cover: top-down terminal rain with a ragged edge.
+export function flightState(progress: number): FlightState {
+  const turn = smooth(progress, 0.19, 0.42);
+  const arrival = smooth(progress, 0.64, CASE_THREE_ARRIVED);
+  const approach = 1 - Math.pow(1 - arrival, 2.4);
+  const epsilon = 0.004;
+  const slope = (cruise(progress + epsilon) - cruise(progress - epsilon)) / (2 * epsilon);
+  return {
+    planeA: {
+      visible: progress > 0 && progress < 0.47,
+      x: -68 * turn,
+      y: 0,
+      z: 240 * turn,
+      rotateY: -30 * turn,
+    },
+    planeB: {
+      visible: progress >= 0.6 && progress < 1,
+      x: 0,
+      y: 4 * (1 - approach),
+      z: -5200 * (1 - approach),
+      rotateY: 9 * (1 - approach),
+    },
+    space: {
+      visible: progress >= CASE_TWO_COVERED && progress < CASE_THREE_ARRIVED,
+      travel: cruise(progress) * TRAVEL,
+      speed: clamp01(slope / 3.2),
+      turn,
+      colour: smooth(progress, 0.42, 0.66),
+    },
+  };
+}
+
+// Case 02 turns into characters: top-down terminal rain with a ragged edge.
+export function coverPhase(progress: number, col: number, row: number, rows: number) {
   const rain = (row / Math.max(1, rows - 1)) * 0.7 + hash(col, row, 1) * 0.3;
-  const coverStart = rain * COVER_SPREAD;
-  // Swap: a radial front out of the old door position.
+  const start = rain * 0.12;
+  return smooth(progress, start, start + 0.06);
+}
+
+// Plane A crumbles into dust while it slides out of frame.
+export function dropPhase(progress: number, col: number, row: number) {
+  const start = 0.27 + hash(col, row, 6) * 0.15;
+  return smooth(progress, start, start + 0.03);
+}
+
+// Case 03 settles out of scrambled colour glyphs, from the old door outwards.
+export function swapPhase(progress: number, col: number, row: number, cols: number, rows: number) {
   const dx = col / Math.max(1, cols - 1) - WAVE_ORIGIN[0];
   const dy = (row / Math.max(1, rows - 1) - WAVE_ORIGIN[1]) * 0.6;
   const radial = clamp01(Math.hypot(dx, dy) / 0.78) * 0.85 + hash(col, row, 2) * 0.15;
-  const swapStart = SWAP_START + radial * SWAP_SPREAD;
-  // Reveal: a loose sparkle, slightly later far from the origin.
-  const revealStart = REVEAL_START + (hash(col, row, 3) * 0.75 + radial * 0.25) * REVEAL_SPREAD;
-  return {
-    cover: smooth(progress, coverStart, coverStart + COVER_LENGTH),
-    swap: smooth(progress, swapStart, swapStart + SWAP_LENGTH),
-    reveal: smooth(progress, revealStart, revealStart + REVEAL_LENGTH),
-  };
+  const start = 0.7 + radial * 0.12;
+  return smooth(progress, start, start + 0.06);
+}
+
+// The arrived screen falls away cell by cell and uncovers the real case 03.
+export function revealPhase(progress: number, col: number, row: number) {
+  const start = 0.9 + hash(col, row, 3) * 0.07;
+  return smooth(progress, start, start + 0.03);
 }
 
 // Scrambled glyphs change in steps of scroll, not time, so reversing the
