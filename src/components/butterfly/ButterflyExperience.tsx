@@ -426,6 +426,7 @@ export function ButterflyExperience() {
   const passRef = useRef({ value: 0 });
   const meadowRef = useRef({ value: 0 });
   const processRef = useRef<HTMLElement>(null);
+  const nightSkyRef = useRef<HTMLDivElement>(null);
   const uniformsRef = useRef<Uniforms | null>(null);
   const progressRef = useRef({ value: 0 });
   const flightRef = useRef({ value: 0 });
@@ -869,6 +870,7 @@ export function ButterflyExperience() {
       columnUniforms.uButterflyCenter.value.set(camera.aspect * 0.69, 0.18);
     };
     const stageSize = { width: 1, height: 1 };
+    const horizonPoint = new THREE.Vector3();
     const resize = () => {
       stageSize.width = mount.clientWidth;
       stageSize.height = mount.clientHeight;
@@ -1792,6 +1794,18 @@ export function ButterflyExperience() {
           ? walkScene.portalTransform(camera, stageSize.width, stageSize.height, "caseThree", meadowState.collapse)
           : flying && inPass && opacity > 0 ? project("caseThree") : "none";
       }
+      if (nightSkyRef.current) {
+        // A deep night blue rises in the sky once the butterfly is out; its
+        // glow sits on the real horizon, wherever the camera looks.
+        const life = meadowState.active ? 1 : passState.active ? passState.life : 0;
+        nightSkyRef.current.style.opacity = String(life);
+        if (life > 0) {
+          camera.getWorldDirection(horizonPoint);
+          horizonPoint.y = 0;
+          horizonPoint.normalize().multiplyScalar(1000).add(camera.position).project(camera);
+          nightSkyRef.current.style.setProperty("--horizon", `${(1 - horizonPoint.y) * 0.5 * stageSize.height}px`);
+        }
+      }
       if (processRef.current) {
         processRef.current.style.opacity = String(meadowProgress >= 1 ? 1 : meadowState.processReveal);
       }
@@ -1826,6 +1840,7 @@ export function ButterflyExperience() {
   return (
     <main ref={shellRef} className="study-shell">
       <div ref={stageRef} className="hero-stage">
+        <div ref={nightSkyRef} className="night-sky" aria-hidden="true" />
         <div ref={mountRef} className="canvas-mount" aria-hidden="true" />
         <HeroStory />
 

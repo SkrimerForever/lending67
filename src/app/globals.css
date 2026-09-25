@@ -1405,6 +1405,25 @@ button, input { font: inherit; }
   .study-shell { height: 3700svh; }
 }
 
+/* The night sky behind the particle world once the butterfly is out: black
+   overhead, a deep night blue towards the horizon (--horizon follows the
+   camera's real horizon), dark earth below. */
+.night-sky {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  --horizon: 60%;
+  background: linear-gradient(180deg,
+    #000 0,
+    #02040b calc(var(--horizon) - 45vh),
+    #061129 calc(var(--horizon) - 14vh),
+    #0c1c3b var(--horizon),
+    #060a14 calc(var(--horizon) + 7vh),
+    #010102 calc(var(--horizon) + 22vh),
+    #000 calc(var(--horizon) + 40vh));
+  will-change: opacity;
+}
 /* Block 04 opens over the meadow: no backdrop, the world stays visible. */
 .process-stub {
   position: absolute;

@@ -4,6 +4,7 @@ import { createWalkEnvironment } from "./walkEnvironment";
 import { createWalkerFigure } from "./WalkerFigure";
 import { quadToMatrix3d, type ScreenPoint } from "./portalTransform";
 import { createMeadow } from "./Meadow";
+import { createNightLife } from "./NightLife";
 import { createPassButterfly } from "./PassButterfly";
 import {
   CASE_THREE_SCREEN,
@@ -57,9 +58,16 @@ export function createWalkScene(profile: PerformanceProfile, pixelRatio: number)
   // The same butterfly again, bursting out of case 03 and flying over the meadow.
   const meadowButterfly = createPassButterfly(profile.passButterflyParticleCount, pixelRatio, CASE_THREE_SCREEN, CASE_THREE_SCREEN);
   const meadowField = createMeadow(profile.meadowParticleCount, CASE_THREE_SCREEN[0], pixelRatio);
+  const nightLife = createNightLife({
+    milkyWay: profile.nightMilkyWayCount,
+    forest: profile.nightForestCount,
+    fireflies: profile.nightFireflyCount,
+    mist: profile.nightMistCount,
+    water: profile.nightWaterCount,
+  }, pixelRatio);
   group.add(environment.group);
   group.add(walker.points);
-  group.add(butterfly.points, meadowButterfly.points, meadowField.points);
+  group.add(butterfly.points, meadowButterfly.points, meadowField.points, nightLife.group);
   const target = new THREE.Vector3();
   const eye = new THREE.Vector3();
   const corner = new THREE.Vector3();
@@ -107,6 +115,15 @@ export function createWalkScene(profile: PerformanceProfile, pixelRatio: number)
         meadowField.update(meadow, time);
       }
       meadowButterfly.setAspect(camera.aspect);
+      // The night comes alive with the butterfly and stays alive after it.
+      const flyer = mowing && meadow ? meadow : passing && pass ? pass : null;
+      nightLife.update({
+        life: mowing ? 1 : passing && pass ? pass.life : 0,
+        time,
+        eye,
+        butterfly: flyer ? flyer.butterflyPosition : [0, -100, 0],
+        butterflyOn: flyer ? flyer.gather * (1 - flyer.vanish) : 0,
+      });
     },
     setPixelRatio(value) {
       walker.setPixelRatio(value);
@@ -114,6 +131,7 @@ export function createWalkScene(profile: PerformanceProfile, pixelRatio: number)
       butterfly.setPixelRatio(value);
       meadowButterfly.setPixelRatio(value);
       meadowField.setPixelRatio(value);
+      nightLife.setPixelRatio(value);
     },
     portalTransform(camera, width, height, screen, scale = [1, 1]) {
       camera.updateMatrixWorld();
@@ -132,6 +150,7 @@ export function createWalkScene(profile: PerformanceProfile, pixelRatio: number)
       butterfly.dispose();
       meadowButterfly.dispose();
       meadowField.dispose();
+      nightLife.dispose();
     },
   };
 }

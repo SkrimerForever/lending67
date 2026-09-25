@@ -185,6 +185,9 @@ export type ButterflyShapeState = {
   warmth: number;
   // The butterfly's points fade out (0 → 1) once it has become the next screen.
   vanish: number;
+  // The night comes alive with the butterfly (0 → 1) — sky, moon, forest,
+  // fireflies, mist and water — and stays alive from then on.
+  life: number;
 };
 
 type Flight = { times: number[]; knots: Vec3[] };
@@ -291,6 +294,7 @@ export function getButterflyPassState(progress: number, options: WalkFlightOptio
   const common = {
     collapse, screenDissolve, gather, land, warmth, caseThreeLight, caseThreeReveal,
     vanish: caseThreeReveal,
+    life: smooth(progress, 0.12, 0.35),
     butterflyPosition: flight.position,
     butterflyHeading: flight.heading,
     butterflySpeed: flight.speed,
@@ -385,6 +389,7 @@ export function getMeadowPassState(progress: number, options: WalkFlightOptions)
     land: 0,
     vanish: 0,
     warmth: 1,
+    life: 1,
     grassFront,
     grassAll: smooth(progress, 0.4, 0.5),
     butterflyPosition: flight.position,

@@ -233,3 +233,10 @@ test("meadow camera travel is continuous and block 04 opens at the end", () => {
   assert.equal(getMeadowPassState(0.8, desktop).processReveal, 0);
   assert.equal(getMeadowPassState(1, desktop).processReveal, 1);
 });
+
+test("the night comes alive with the butterfly and stays alive", () => {
+  assert.equal(getButterflyPassState(0.1, desktop).life, 0);
+  assert.equal(getButterflyPassState(0.35, desktop).life, 1);
+  assert.equal(getButterflyPassState(1, desktop).life, 1);
+  assert.equal(getMeadowPassState(0.5, desktop).life, 1);
+});

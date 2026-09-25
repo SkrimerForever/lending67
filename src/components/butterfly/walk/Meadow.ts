@@ -43,6 +43,7 @@ const vertexShader = /* glsl */ `
   uniform float uAll;
   uniform float uCenter;
   uniform float uHalfWidth;
+  uniform vec3 uButterfly;
   attribute vec3 aRoot;
   attribute float aHeight;
   attribute float aStem;
@@ -71,6 +72,19 @@ const vertexShader = /* glsl */ `
     point.x += sway * bend * grow;
     point.z += cos(uTime * 0.9 + aSeed * 11.0) * 0.02 * bend * grow;
 
+    // The butterfly's wind: stems under it bend away in a ripple, and pollen
+    // lifts off the flowers, glinting, before it settles again.
+    vec2 away = aRoot.xz - uButterfly.xz;
+    float reach = length(away);
+    float low = 1.0 - smoothstep(0.6, 2.2, uButterfly.y);
+    float wind = (1.0 - smoothstep(0.2, 1.9, reach)) * low * grow;
+    float ripple = 0.75 + 0.25 * sin(reach * 7.0 - uTime * 9.0);
+    point.xz += normalize(away + 1e-4) * wind * ripple * 0.13 * bend;
+    point.y -= wind * 0.03 * bend;
+    float pollen = wind * isPetal;
+    point.y += pollen * (0.12 + aSeed * 0.4);
+    point.x += sin(uTime * 3.0 + aSeed * 20.0) * pollen * 0.12;
+
     vec4 viewPosition = modelViewMatrix * vec4(point, 1.0);
     gl_Position = projectionMatrix * viewPosition;
     float distanceToCamera = -viewPosition.z;
@@ -87,7 +101,7 @@ const vertexShader = /* glsl */ `
     float fromCentre = abs(aRoot.x - uCenter - sin(aRoot.z * 0.08) * 0.45);
     float edge = 1.0 - smoothstep(uHalfWidth - 0.25, uHalfWidth, fromCentre);
     float centre = 1.0 + 0.5 * (1.0 - smoothstep(0.1, 0.7, fromCentre));
-    vAlpha = uReveal * visible * mix(0.6, 1.0, aSeed) * mix(1.0, 1.15, isGround) * edge * centre
+    vAlpha = uReveal * visible * mix(0.6, 1.0, aSeed) * mix(1.0, 1.15, isGround) * edge * centre * (1.0 + pollen * 1.6)
       * smoothstep(0.3, 1.0, distanceToCamera) * (1.0 - smoothstep(20.0, 40.0, distanceToCamera));
     vGrow = grow;
     // Tips of blades catch a little more light than their roots.
@@ -198,6 +212,7 @@ export function createMeadow(count: number, center: number, pixelRatio: number):
     uAll: { value: 0 },
     uCenter: { value: center },
     uHalfWidth: { value: ROAD_HALF_WIDTH },
+    uButterfly: { value: new THREE.Vector3(0, -100, 0) },
   };
   const material = new THREE.ShaderMaterial({
     uniforms,
@@ -220,6 +235,7 @@ export function createMeadow(count: number, center: number, pixelRatio: number):
       uniforms.uReveal.value = state.roadReveal;
       uniforms.uFront.value = state.grassFront;
       uniforms.uAll.value = state.grassAll;
+      uniforms.uButterfly.value.set(...state.butterflyPosition);
     },
     setPixelRatio(value) {
       uniforms.uPixelRatio.value = value;
