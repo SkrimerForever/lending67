@@ -13,7 +13,6 @@ export type PerformanceProfile = {
   nightForestCount: number;
   nightFireflyCount: number;
   nightMistCount: number;
-  nightWaterCount: number;
   pixelRatioCap: number;
   columnSampleWidth: number;
 };
@@ -39,11 +38,10 @@ const HIGH: PerformanceProfile = {
   walkDustParticleCount: 1_500,
   passButterflyParticleCount: 9_000,
   meadowParticleCount: 110_000,
-  nightMilkyWayCount: 7_000,
-  nightForestCount: 26_000,
-  nightFireflyCount: 260,
+  nightMilkyWayCount: 12_000,
+  nightForestCount: 60_000,
+  nightFireflyCount: 700,
   nightMistCount: 18_000,
-  nightWaterCount: 6_000,
   pixelRatioCap: 2,
   columnSampleWidth: 520,
 };
@@ -59,11 +57,10 @@ const BALANCED: PerformanceProfile = {
   walkDustParticleCount: 1_000,
   passButterflyParticleCount: 6_000,
   meadowParticleCount: 64_000,
-  nightMilkyWayCount: 4_500,
-  nightForestCount: 16_000,
-  nightFireflyCount: 180,
+  nightMilkyWayCount: 7_000,
+  nightForestCount: 36_000,
+  nightFireflyCount: 450,
   nightMistCount: 11_000,
-  nightWaterCount: 4_000,
   pixelRatioCap: 1.5,
   columnSampleWidth: 380,
 };
@@ -79,11 +76,10 @@ const LOW: PerformanceProfile = {
   walkDustParticleCount: 600,
   passButterflyParticleCount: 3_500,
   meadowParticleCount: 30_000,
-  nightMilkyWayCount: 2_500,
-  nightForestCount: 8_000,
-  nightFireflyCount: 110,
+  nightMilkyWayCount: 3_500,
+  nightForestCount: 16_000,
+  nightFireflyCount: 250,
   nightMistCount: 5_000,
-  nightWaterCount: 2_000,
   pixelRatioCap: 1,
   columnSampleWidth: 280,
 };

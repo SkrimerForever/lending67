@@ -3,8 +3,7 @@ import { MEADOW_FAR_Z, type Vec3 } from "./walkFlightState";
 
 // The night the butterfly flies through: a Milky Way and a crescent moon on the
 // sky, forest and hills along the sides and the horizon, fireflies that flare
-// up around the butterfly, low mist over the ground and a pond with a moon
-// path. All of it is points, and all of it only appears once the butterfly is
+// up around the butterfly and low mist over the ground. All of it is points, and all of it only appears once the butterfly is
 // out (life), so the story before case 03 stays black and white.
 
 export type NightLifeCounts = {
@@ -12,7 +11,6 @@ export type NightLifeCounts = {
   forest: number;
   fireflies: number;
   mist: number;
-  water: number;
 };
 
 export type NightLifeUpdate = {
@@ -35,9 +33,6 @@ export type NightLife = {
 // The moon stands ahead and a little to the right, as in the final shot.
 export const MOON_DIRECTION = new THREE.Vector3(0.36, 0.13, -1).normalize();
 const SKY_RADIUS = 58;
-// The pond lies to the right of the grass road.
-const POND_CENTER = new THREE.Vector3(10.2, 0, -44);
-const POND_RADII = new THREE.Vector2(2.8, 8);
 
 type Layer = {
   points: THREE.Points;
@@ -130,7 +125,7 @@ function createMilkyWay(count: number, pixelRatio: number): Layer {
         gl_PointSize = mix(0.9, 1.8, aSeed * aBrightness) * uPixelRatio;
         float twinkle = 0.8 + 0.2 * sin(uTime * (0.5 + aSeed) + aSeed * 40.0);
         vColor = vec3(0.78, 0.84, 1.0);
-        vAlpha = uLife * (0.14 + 0.5 * aBrightness) * twinkle;
+        vAlpha = uLife * (0.25 + 0.7 * aBrightness) * twinkle;
       }
     `,
     {},
@@ -196,7 +191,7 @@ function createForest(count: number, pixelRatio: number): Layer {
   const seed: number[] = [];
   const addTree = (x: number, z: number, height: number) => {
     const conifer = Math.random() < 0.55;
-    const points = Math.round(60 + height * 26);
+    const points = Math.round(90 + height * 36);
     const crownBase = height * (conifer ? 0.18 : 0.35);
     const crownRadius = height * (conifer ? 0.24 : 0.3);
     for (let i = 0; i < points; i += 1) {
@@ -233,11 +228,14 @@ function createForest(count: number, pixelRatio: number): Layer {
   let used = 0;
   // Two edges of forest along the flight; denser further on, towards the end
   // of the site, where the night becomes a forest.
+  // The flight runs from x = 0 (case 02) to x = 6 (case 03 and the road), so
+  // the edges follow it: close enough to stand clearly in frame.
   while (used < count * 0.72) {
     const z = 4 - Math.pow(Math.random(), 0.7) * 110;
-    const side = Math.random() < 0.5;
-    const x = side ? -5 - Math.random() * 12 : 16 + Math.random() * 14;
-    used += addTree(x, z, 3 + Math.random() * 4.5);
+    const axis = z > -20 ? 3 * (4 - z) / 24 : 6;
+    const side = Math.random() < 0.5 ? -1 : 1;
+    const x = axis + side * (3.8 + Math.pow(Math.random(), 1.5) * 10);
+    used += addTree(x, z, 3.5 + Math.random() * 5);
   }
   // A tree line on the horizon.
   while (used < count * 0.9) {
@@ -270,11 +268,11 @@ function createForest(count: number, pixelRatio: number): Layer {
         vec4 viewPosition = modelViewMatrix * vec4(point, 1.0);
         gl_Position = projectionMatrix * viewPosition;
         float distanceToCamera = -viewPosition.z;
-        gl_PointSize = mix(1.0, 1.8, aSeed) * uPixelRatio * clamp(12.0 / max(distanceToCamera, 1.0), 0.6, 2.2);
-        vColor = mix(vec3(0.16, 0.26, 0.22), vec3(0.62, 0.72, 0.7), aShade * aShade);
-        // Distance and mist swallow the far trees.
-        float haze = exp(-distanceToCamera * 0.012);
-        vAlpha = uLife * (0.25 + 0.55 * aShade) * mix(0.35, 1.0, haze);
+        gl_PointSize = mix(1.2, 2.2, aSeed) * uPixelRatio * clamp(12.0 / max(distanceToCamera, 1.0), 0.7, 2.4);
+        vColor = mix(vec3(0.22, 0.4, 0.3), vec3(0.72, 0.84, 0.78), aShade * aShade);
+        // Distance and mist soften the far trees.
+        float haze = exp(-distanceToCamera * 0.01);
+        vAlpha = uLife * (0.45 + 0.55 * aShade) * mix(0.5, 1.0, haze);
       }
     `,
     {},
@@ -312,7 +310,7 @@ function createFireflies(count: number, pixelRatio: number): Layer {
         vec4 viewPosition = modelViewMatrix * vec4(point, 1.0);
         gl_Position = projectionMatrix * viewPosition;
         float distanceToCamera = -viewPosition.z;
-        float glow = 0.25 + 0.75 * blink + near * 1.4;
+        float glow = 0.45 + 0.8 * blink + near * 1.4;
         gl_PointSize = (2.2 + 2.6 * glow) * uPixelRatio * clamp(6.0 / max(distanceToCamera, 0.5), 0.35, 2.0);
         vColor = mix(vec3(0.82, 0.95, 0.42), vec3(1.0, 0.92, 0.6), near);
         vAlpha = uLife * min(1.0, glow) * smoothstep(0.3, 1.2, distanceToCamera);
@@ -371,49 +369,6 @@ function createMist(count: number, pixelRatio: number): Layer {
   );
 }
 
-// A dark pond with a shimmering moon path across it, towards the moon.
-function createWater(count: number, pixelRatio: number): Layer {
-  const position: number[] = [];
-  const glitter: number[] = [];
-  const seed: number[] = [];
-  for (let i = 0; i < count; i += 1) {
-    const a = Math.random() * Math.PI * 2;
-    const r = Math.sqrt(Math.random());
-    const x = POND_CENTER.x + Math.cos(a) * r * POND_RADII.x;
-    const z = POND_CENTER.z + Math.sin(a) * r * POND_RADII.y;
-    position.push(x, 0.01, z);
-    // The moon path runs along the pond towards the moon, narrowing away.
-    const across = x - POND_CENTER.x - (z - POND_CENTER.z) * MOON_DIRECTION.x * 0.3;
-    glitter.push(Math.exp(-(across * across) / 0.3));
-    seed.push(Math.random());
-  }
-  return makeLayer(
-    { position: { data: position, size: 3 }, aGlitter: { data: glitter, size: 1 }, aSeed: { data: seed, size: 1 } },
-    /* glsl */ `
-      uniform float uTime;
-      uniform float uLife;
-      uniform float uPixelRatio;
-      attribute float aGlitter;
-      attribute float aSeed;
-      varying vec3 vColor;
-      varying float vAlpha;
-      void main() {
-        vec3 point = position;
-        point.y += sin(uTime * 0.9 + position.z * 1.7 + aSeed * 6.0) * 0.01;
-        vec4 viewPosition = modelViewMatrix * vec4(point, 1.0);
-        gl_Position = projectionMatrix * viewPosition;
-        float distanceToCamera = -viewPosition.z;
-        gl_PointSize = mix(1.0, 1.8, aSeed) * uPixelRatio * clamp(8.0 / max(distanceToCamera, 0.5), 0.5, 2.0);
-        float shimmer = pow(max(0.0, sin(uTime * (1.2 + aSeed * 2.0) + aSeed * 50.0 + position.z * 3.0)), 3.0);
-        vColor = mix(vec3(0.2, 0.3, 0.46), vec3(0.95, 0.94, 0.86), aGlitter);
-        vAlpha = uLife * (0.28 + aGlitter * (0.45 + 1.1 * shimmer));
-      }
-    `,
-    {},
-    pixelRatio,
-  );
-}
-
 export function createNightLife(counts: NightLifeCounts, pixelRatio: number): NightLife {
   const group = new THREE.Group();
   // The sky layers sit at infinity: they travel with the camera.
@@ -424,9 +379,8 @@ export function createNightLife(counts: NightLifeCounts, pixelRatio: number): Ni
   const forest = createForest(counts.forest, pixelRatio);
   const fireflies = createFireflies(counts.fireflies, pixelRatio);
   const mist = createMist(counts.mist, pixelRatio);
-  const water = createWater(counts.water, pixelRatio);
-  group.add(sky, forest.points, water.points, mist.points, fireflies.points);
-  const layers = [milkyWay, moon, forest, fireflies, mist, water];
+  group.add(sky, forest.points, mist.points, fireflies.points);
+  const layers = [milkyWay, moon, forest, fireflies, mist];
 
   return {
     group,

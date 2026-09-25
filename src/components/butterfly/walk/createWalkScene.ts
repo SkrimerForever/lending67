@@ -63,7 +63,6 @@ export function createWalkScene(profile: PerformanceProfile, pixelRatio: number)
     forest: profile.nightForestCount,
     fireflies: profile.nightFireflyCount,
     mist: profile.nightMistCount,
-    water: profile.nightWaterCount,
   }, pixelRatio);
   group.add(environment.group);
   group.add(walker.points);

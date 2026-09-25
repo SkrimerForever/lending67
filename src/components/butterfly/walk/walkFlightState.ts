@@ -186,7 +186,7 @@ export type ButterflyShapeState = {
   // The butterfly's points fade out (0 → 1) once it has become the next screen.
   vanish: number;
   // The night comes alive with the butterfly (0 → 1) — sky, moon, forest,
-  // fireflies, mist and water — and stays alive from then on.
+  // fireflies and mist — and stays alive from then on.
   life: number;
 };
 
@@ -323,10 +323,10 @@ export function getButterflyPassState(progress: number, options: WalkFlightOptio
   return { ...common, active: true, cameraPosition, cameraTarget, cameraRoll: flight.bank * 0.25 * follow };
 }
 
-// Case 03 → block 04 (process), driven by its own 0..1 progress. Case 03 folds
+// Case 03 → case 04, driven by its own 0..1 progress. Case 03 folds
 // away, the butterfly bursts out again and flies on low along a road of
 // points; soon after, grass grows up out of that road, a wave running on
-// ahead, until the whole road is one muted green grass road. Block 04 opens
+// ahead, until the whole road is one muted green grass road. Case 04 opens
 // over it.
 export type MeadowPassState = ButterflyShapeState & {
   cameraPosition: Vec3;
@@ -341,8 +341,8 @@ export type MeadowPassState = ButterflyShapeState & {
   grassFront: number;
   // Grass everywhere, road or not (0 → 1), to finish the meadow.
   grassAll: number;
-  // Block 04 opens over the meadow (0 → 1).
-  processReveal: number;
+  // Case 04 opens over the grass road (0 → 1).
+  caseFourReveal: number;
 };
 
 export const MEADOW_NEAR_Z = -30;
@@ -379,13 +379,13 @@ export function getMeadowPassState(progress: number, options: WalkFlightOptions)
   const screenDissolve = smooth(progress, 0.11, 0.15);
   const gather = smooth(progress, 0.13, 0.26);
   const roadReveal = smooth(progress, 0.1, 0.28);
-  const processReveal = smooth(progress, 0.82, 0.96);
+  const caseFourReveal = smooth(progress, 0.82, 0.96);
   const flight = flightKinematics(progress, MEADOW_FLIGHT);
   // The grass wave starts as soon as the butterfly is out and runs on ahead
   // along the road, so the road turns green early in the flight.
   const grassFront = lerp(MEADOW_NEAR_Z + 4, MEADOW_FAR_Z - 8, smooth(progress, 0.16, 0.45));
   const common = {
-    collapse, screenDissolve, gather, roadReveal, processReveal,
+    collapse, screenDissolve, gather, roadReveal, caseFourReveal,
     land: 0,
     vanish: 0,
     warmth: 1,
@@ -403,7 +403,7 @@ export function getMeadowPassState(progress: number, options: WalkFlightOptions)
     return { ...common, active: false, cameraPosition: [...CASE_THREE_PORTAL], cameraTarget: screen, cameraRoll: 0 };
   }
   if (options.reducedMotion) {
-    // No flight: case 03 crossfades straight into block 04.
+    // No flight: case 03 crossfades straight into case 04.
     return {
       ...common, active: true, cameraPosition: [...CASE_THREE_PORTAL], cameraTarget: screen, cameraRoll: 0,
       collapse: [1, 1], gather: 0, roadReveal: 0, butterflySpeed: 0, butterflyBank: 0, grassAll: 0,

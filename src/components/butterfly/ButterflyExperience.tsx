@@ -10,7 +10,7 @@ import { HeroStory } from "./HeroStory";
 import { LoadingLine } from "./LoadingLine";
 import { getPerformanceProfile, type PerformanceProfile } from "./performance-profile";
 import { SecondCaseStub } from "./SecondCaseStub";
-import { ProcessStub } from "./ProcessStub";
+import { FourthCaseStub } from "./FourthCaseStub";
 import { ThirdCase } from "./ThirdCase";
 import { createWalkScene } from "./walk/createWalkScene";
 import { getButterflyPassState, getMeadowPassState, getWalkFlightState } from "./walk/walkFlightState";
@@ -425,7 +425,7 @@ export function ButterflyExperience() {
   const caseThreeRef = useRef<HTMLElement>(null);
   const passRef = useRef({ value: 0 });
   const meadowRef = useRef({ value: 0 });
-  const processRef = useRef<HTMLElement>(null);
+  const caseFourRef = useRef<HTMLElement>(null);
   const nightSkyRef = useRef<HTMLDivElement>(null);
   const uniformsRef = useRef<Uniforms | null>(null);
   const progressRef = useRef({ value: 0 });
@@ -576,7 +576,7 @@ export function ButterflyExperience() {
     });
     thirdCaseTimeline.to(passRef.current, { value: 1, duration: 1, ease: "none" });
 
-    // Case 03 → block 04 over the meadow, after a pause on case 03.
+    // Case 03 → case 04 over the grass road, after a pause on case 03.
     const meadowTimeline = gsap.timeline({
       scrollTrigger: {
         trigger: shell,
@@ -1806,8 +1806,8 @@ export function ButterflyExperience() {
           nightSkyRef.current.style.setProperty("--horizon", `${(1 - horizonPoint.y) * 0.5 * stageSize.height}px`);
         }
       }
-      if (processRef.current) {
-        processRef.current.style.opacity = String(meadowProgress >= 1 ? 1 : meadowState.processReveal);
+      if (caseFourRef.current) {
+        caseFourRef.current.style.opacity = String(meadowProgress >= 1 ? 1 : meadowState.caseFourReveal);
       }
       renderer.render(scene, camera);
     };
@@ -1874,7 +1874,7 @@ export function ButterflyExperience() {
 
         <SecondCaseStub veilRef={walkVeilRef} stubRef={caseTwoRef} />
         <ThirdCase sectionRef={caseThreeRef} />
-        <ProcessStub sectionRef={processRef} />
+        <FourthCaseStub sectionRef={caseFourRef} />
 
         <LoadingLine progress={loadingProgress} complete={loadingComplete} />
       </div>

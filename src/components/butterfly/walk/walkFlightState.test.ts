@@ -222,7 +222,7 @@ test("the camera flies low over the road with the butterfly ahead of it", () => 
   }
 });
 
-test("meadow camera travel is continuous and block 04 opens at the end", () => {
+test("meadow camera travel is continuous and case 04 opens at the end", () => {
   let previous = getMeadowPassState(0.001, desktop);
   for (let progress = 0.002; progress <= 1; progress += 0.001) {
     const next = getMeadowPassState(progress, desktop);
@@ -230,8 +230,8 @@ test("meadow camera travel is continuous and block 04 opens at the end", () => {
     assert.ok(distance(next.cameraTarget, previous.cameraTarget) < 0.3, `view jumps at ${progress}`);
     previous = next;
   }
-  assert.equal(getMeadowPassState(0.8, desktop).processReveal, 0);
-  assert.equal(getMeadowPassState(1, desktop).processReveal, 1);
+  assert.equal(getMeadowPassState(0.8, desktop).caseFourReveal, 0);
+  assert.equal(getMeadowPassState(1, desktop).caseFourReveal, 1);
 });
 
 test("the night comes alive with the butterfly and stays alive", () => {

@@ -1424,8 +1424,8 @@ button, input { font: inherit; }
     #000 calc(var(--horizon) + 40vh));
   will-change: opacity;
 }
-/* Block 04 opens over the meadow: no backdrop, the world stays visible. */
-.process-stub {
+/* Case 04 opens over the grass road: no backdrop, the world stays visible. */
+.case-four-stub {
   position: absolute;
   z-index: 5;
   inset: 0;
@@ -1437,12 +1437,12 @@ button, input { font: inherit; }
   pointer-events: none;
   will-change: opacity;
 }
-.process-stub__index {
+.case-four-stub__index {
   color: #858d8d;
   font: 600 10px Arial, sans-serif;
   letter-spacing: 0.2em;
 }
-.process-stub__title {
+.case-four-stub__title {
   margin: 0;
   color: #e1e5e4;
   font: 1000 clamp(28px, 3.2vw, 56px)/0.92 "Martian Grotesk UltraExpanded", sans-serif;
