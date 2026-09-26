@@ -241,30 +241,37 @@ function createForest(count: number, pixelRatio: number): Layer {
   while (used < count * 0.9) {
     used += addTree(-40 + Math.random() * 100, -112 - Math.random() * 14, 4 + Math.random() * 4);
   }
-  // Low hills behind it.
-  while (used < count) {
+  // Preserve the forest budget; a little more dust defines the distant ridges.
+  const hillMask: number[] = new Array(position.length / 3).fill(0);
+  const hillCount = Math.max(0, Math.round((count - used) * 1.6));
+  for (let i = 0; i < hillCount; i += 1) {
     const x = -70 + Math.random() * 150;
     const ridge = 3 + 2.4 * Math.sin(x * 0.05) + 1.3 * Math.sin(x * 0.13 + 1.7);
-    const y = Math.random() * ridge;
-    position.push(x, y, -135 - Math.random() * 10);
-    shade.push(0.2 + 0.8 * Math.pow(y / ridge, 3));
+    // Concentrate some samples near the crest, keeping its edge soft.
+    const elevation = Math.random() < 0.45 ? Math.pow(Math.random(), 0.28) : Math.random();
+    const y = elevation * ridge;
+    const depth = Math.random();
+    position.push(x, y, -135 - depth * 10);
+    shade.push(0.18 + 0.72 * Math.pow(elevation, 2));
     seed.push(Math.random());
-    used += 1;
+    hillMask.push(1 + depth);
   }
   return makeLayer(
-    { position: { data: position, size: 3 }, aShade: { data: shade, size: 1 }, aSeed: { data: seed, size: 1 } },
+    { position: { data: position, size: 3 }, aShade: { data: shade, size: 1 }, aSeed: { data: seed, size: 1 }, aHill: { data: hillMask, size: 1 } },
     /* glsl */ `
       uniform float uTime;
       uniform float uLife;
       uniform float uPixelRatio;
       attribute float aShade;
       attribute float aSeed;
+      attribute float aHill;
       varying vec3 vColor;
       varying float vAlpha;
       void main() {
         vec3 point = position;
+        float hill = step(0.5, aHill);
         // Crowns stir in a light wind.
-        point.x += sin(uTime * 0.6 + position.z * 0.2 + aSeed * 3.0) * 0.04 * aShade;
+        point.x += sin(uTime * 0.6 + position.z * 0.2 + aSeed * 3.0) * 0.04 * aShade * (1.0 - hill);
         vec4 viewPosition = modelViewMatrix * vec4(point, 1.0);
         gl_Position = projectionMatrix * viewPosition;
         float distanceToCamera = -viewPosition.z;
@@ -273,6 +280,14 @@ function createForest(count: number, pixelRatio: number): Layer {
         // Distance and mist soften the far trees.
         float haze = exp(-distanceToCamera * 0.01);
         vAlpha = uLife * (0.45 + 0.55 * aShade) * mix(0.5, 1.0, haze);
+        if (hill > 0.5) {
+          float depth = aHill - 1.0;
+          vec3 slope = mix(vec3(0.24, 0.39, 0.36), vec3(0.27, 0.36, 0.44), depth);
+          vec3 crest = vec3(0.57, 0.7, 0.65);
+          vColor = mix(slope, crest, aShade * aShade);
+          vAlpha *= mix(1.35, 0.9, depth);
+          gl_PointSize *= 1.08;
+        }
       }
     `,
     {},

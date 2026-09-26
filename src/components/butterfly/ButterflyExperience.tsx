@@ -426,6 +426,8 @@ export function ButterflyExperience() {
   const passRef = useRef({ value: 0 });
   const meadowRef = useRef({ value: 0 });
   const caseFourRef = useRef<HTMLElement>(null);
+  const caseFourScreenRef = useRef<HTMLDivElement>(null);
+  const familyRevealRef = useRef({ value: 0 });
   const nightSkyRef = useRef<HTMLDivElement>(null);
   const uniformsRef = useRef<Uniforms | null>(null);
   const progressRef = useRef({ value: 0 });
@@ -576,17 +578,112 @@ export function ButterflyExperience() {
     });
     thirdCaseTimeline.to(passRef.current, { value: 1, duration: 1, ease: "none" });
 
+    // Give the landed interface a full-screen beat, then pull back to its
+    // explanation. Only the inner frame moves; the outer portal stays owned
+    // by the flight renderer so neither animation overwrites the other.
+    const showcaseMotion = () => !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const showcaseNarrow = () => window.innerWidth <= 760;
+    // Offset coordinates stay stable while the entire screen scales down.
+    const bidflowPoint = (selector: string) => {
+      const frame = stage.querySelector<HTMLElement>(".case-three__frame");
+      const target = stage.querySelector<HTMLElement>(selector);
+      if (!frame || !target) return { x: 0, y: 0 };
+      let x = target.offsetWidth * .4;
+      let y = target.offsetHeight * .5;
+      let node: HTMLElement | null = target;
+      while (node && node !== frame) {
+        x += node.offsetLeft;
+        y += node.offsetTop;
+        node = node.offsetParent as HTMLElement | null;
+      }
+      return { x, y };
+    };
+    const thirdCaseShowcase = gsap.timeline({
+      scrollTrigger: {
+        trigger: shell,
+        start: () => `top+=${storyScrollDistance() + window.innerHeight * 9.9} top`,
+        end: () => `top+=${storyScrollDistance() + window.innerHeight * 16.95} top`,
+        scrub: 0.8,
+        invalidateOnRefresh: true,
+      },
+    });
+    thirdCaseShowcase
+      .fromTo(select(".case-three__frame"),
+        { scale: 1, xPercent: 0, yPercent: 0, borderRadius: 0, opacity: 1, boxShadow: "0 0 0 rgba(2, 5, 3, 0)" },
+        {
+          scale: () => showcaseMotion() ? (showcaseNarrow() ? 0.68 : 0.59) : 1,
+          xPercent: () => showcaseMotion() ? (showcaseNarrow() ? 16 : 39) : 0,
+          yPercent: () => showcaseMotion() ? (showcaseNarrow() ? 31 : 20.5) : 0,
+          borderRadius: () => showcaseMotion() ? (showcaseNarrow() ? 10 : 14) : 0,
+          opacity: () => showcaseMotion() ? 1 : 0.08,
+          boxShadow: () => showcaseMotion() ? "0 16px 44px rgba(2, 5, 3, 0.28)" : "0 0 0 rgba(2, 5, 3, 0)",
+          duration: 1.1, ease: "power2.inOut",
+        }, 0)
+      .fromTo(select(".case-three__grass"),
+        { opacity: 0, scaleY: 0.82, y: 14 },
+        { opacity: () => showcaseMotion() ? 1 : 0, scaleY: 1, y: 0, duration: 0.85, stagger: 0.12, ease: "power2.out" }, 0.7)
+      .set(select(".case-three__grass"), { attr: { "data-active": "true" } }, 0.7)
+      .fromTo(select(".case-three__copy, .case-three__chapter, .case-three__caption"), { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "power2.out" }, 0.58)
+      .fromTo(select(".case-three__copy-label, .case-three__copy h2, .case-three__copy-description, .case-three__copy-foot"),
+        { opacity: 0, y: () => showcaseMotion() ? 18 : 0 },
+        { opacity: 1, y: 0, duration: 0.48, stagger: 0.1, ease: "power2.out" }, 0.58)
+      .fromTo(select(".bidflow-demo-cursor"),
+        { opacity: 0, x: () => bidflowPoint(".bidflow-nav-tenders").x + window.innerWidth * .4, y: () => bidflowPoint(".bidflow-nav-tenders").y + 80 },
+        { opacity: 1, x: () => bidflowPoint(".bidflow-nav-tenders").x - 2.5, y: () => bidflowPoint(".bidflow-nav-tenders").y - 2, duration: 1.1, ease: "power2.inOut" }, 1.05)
+      .set(select(".bidflow-demo-click--nav"), { x: () => bidflowPoint(".bidflow-nav-tenders").x - 11, y: () => bidflowPoint(".bidflow-nav-tenders").y - 11 }, 0)
+      .set(select(".bidflow-demo-click--row"), { x: () => bidflowPoint(".bidflow-demo-tender-title").x - 11, y: () => bidflowPoint(".bidflow-demo-tender-title").y - 11 }, 0)
+      .to(select(".bidflow-nav-overview"), { backgroundColor: "transparent", borderLeftColor: "transparent", color: "#93948e", duration: .18 }, 2.13)
+      .to(select(".bidflow-nav-tenders"), { backgroundColor: "#403b25", borderLeftColor: "#c5b37e", color: "#f2eddd", duration: .16 }, 2.13)
+      .to(select(".bidflow-nav-tenders"), { backgroundColor: "#252319", color: "#ddd8c8", duration: .32 }, 2.32)
+      .fromTo(select(".bidflow-demo-click--nav"), { opacity: 0, scale: .55 }, { opacity: .9, scale: 1.15, duration: .19 }, 2.13)
+      .to(select(".bidflow-demo-click--nav"), { opacity: 0, scale: 2.2, duration: .35 }, 2.32)
+      .fromTo(select(".bidflow-demo-flash"), { opacity: 0 }, { opacity: .24, duration: .13 }, 2.31)
+      .to(select(".bidflow-demo-flash"), { opacity: 0, duration: .42 }, 2.44)
+      .to(select(".bidflow-overview"), { autoAlpha: 0, y: -20, scale: .98, duration: .45, ease: "power2.inOut" }, 2.25)
+      .to(select(".bidflow-crumb-overview"), { opacity: 0, y: -7, duration: .2 }, 2.3)
+      .fromTo(select(".bidflow-crumb-tenders"), { opacity: 0, y: 7 }, { opacity: 1, y: 0, duration: .25 }, 2.45)
+      .fromTo(select(".bidflow-register"), { autoAlpha: 0 }, { autoAlpha: 1, duration: .3 }, 2.5)
+      .fromTo(select(".bidflow-register-heading, .bidflow-register-toolbar, .bidflow-register-columns"), { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: .48, stagger: .13, ease: "power2.out" }, 2.54)
+      .fromTo(select(".bidflow-register-row"), { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: .52, stagger: .13, ease: "power2.out" }, 2.85)
+      .to(select(".bidflow-demo-cursor"), { x: () => bidflowPoint(".bidflow-demo-tender-title").x - 2.5, y: () => bidflowPoint(".bidflow-demo-tender-title").y - 2, duration: .88, ease: "power2.inOut" }, 3.4)
+      .to(select(".bidflow-demo-target"), { backgroundColor: "#20291d", duration: .23 }, 4.19)
+      .fromTo(select(".bidflow-demo-click--row"), { opacity: 0, scale: .55 }, { opacity: .9, scale: 1.15, duration: .18 }, 4.28)
+      .to(select(".bidflow-demo-click--row"), { opacity: 0, scale: 2.2, duration: .35 }, 4.46)
+      .to(select(".bidflow-register"), { autoAlpha: 0, y: -12, duration: .34 }, 4.48)
+      .fromTo(select(".bidflow-detail"), { autoAlpha: 0, y: 13 }, { autoAlpha: 1, y: 0, duration: .42, ease: "power2.out" }, 4.65)
+      .fromTo(select(".bidflow-detail-tabs, .bidflow-decision-intro"), { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: .42, stagger: .1, ease: "power2.out" }, 4.7)
+      .fromTo(select(".bidflow-decision-metrics > div"), { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: .34, stagger: .1, ease: "power2.out" }, 4.95)
+      .fromTo(select(".bidflow-conditions > .bidflow-eyebrow, .bidflow-conditions > h2, .bidflow-conditions article"), { opacity: 0, y: 15 }, { opacity: 1, y: 0, duration: .34, stagger: .12, ease: "power2.out" }, 5.08)
+      .fromTo(select(".bidflow-contract"), { opacity: 0, x: 13 }, { opacity: 1, x: 0, duration: .4, ease: "power2.out" }, 4.92)
+      .fromTo(select(".bidflow-contract dl > div, .bidflow-documents"), { opacity: 0, x: 13 }, { opacity: 1, x: 0, duration: .4, stagger: .12, ease: "power2.out" }, 5.02)
+      .to(select(".bidflow-demo-cursor"), { opacity: 0, duration: .3 }, 5.45)
+      .to(select(".case-three__copy, .case-three__chapter, .case-three__caption"), { opacity: 0, duration: 0.24, ease: "power2.in" }, 6.35)
+      .to(select(".case-three__grass"), { opacity: 0, duration: 0.28, ease: "power2.in" }, 6.32)
+      .set(select(".case-three__grass"), { attr: { "data-active": "false" } }, 6.6)
+      .to(select(".case-three__frame"),
+        { scale: 1, xPercent: 0, yPercent: 0, borderRadius: 0, opacity: 1, boxShadow: "0 0 0 rgba(2, 5, 3, 0)", duration: 0.65, ease: "power2.inOut" }, 6.45);
+
     // Case 03 → case 04 over the grass road, after a pause on case 03.
     const meadowTimeline = gsap.timeline({
       scrollTrigger: {
         trigger: shell,
-        start: () => `top+=${storyScrollDistance() + window.innerHeight * 10.6} top`,
-        end: () => `top+=${storyScrollDistance() + window.innerHeight * 13.2} top`,
+        start: () => `top+=${storyScrollDistance() + window.innerHeight * 17.15} top`,
+        end: () => `top+=${storyScrollDistance() + window.innerHeight * 19.75} top`,
         scrub: 0.8,
         invalidateOnRefresh: true,
       },
     });
     meadowTimeline.to(meadowRef.current, { value: 1, duration: 1, ease: "none" });
+    const familyTimeline = gsap.timeline({
+      scrollTrigger: {
+        trigger: shell,
+        start: () => `top+=${storyScrollDistance() + window.innerHeight * 19.8} top`,
+        end: () => `top+=${storyScrollDistance() + window.innerHeight * 21.3} top`,
+        scrub: 0.6,
+        invalidateOnRefresh: true,
+      },
+    });
+    familyTimeline.to(familyRevealRef.current, { value: 1, duration: 1, ease: "none" });
 
     const context = gsap.context(() => {
       const timeline = gsap.timeline({
@@ -669,8 +766,12 @@ export function ButterflyExperience() {
       moexTimeline.kill();
       thirdCaseTimeline.scrollTrigger?.kill();
       thirdCaseTimeline.kill();
+      thirdCaseShowcase.scrollTrigger?.kill();
+      thirdCaseShowcase.revert();
       meadowTimeline.scrollTrigger?.kill();
       meadowTimeline.kill();
+      familyTimeline.scrollTrigger?.kill();
+      familyTimeline.kill();
     };
   }, []);
 
@@ -1806,8 +1907,22 @@ export function ButterflyExperience() {
           nightSkyRef.current.style.setProperty("--horizon", `${(1 - horizonPoint.y) * 0.5 * stageSize.height}px`);
         }
       }
-      if (caseFourRef.current) {
-        caseFourRef.current.style.opacity = String(meadowProgress >= 1 ? 1 : meadowState.caseFourReveal);
+      if (caseFourRef.current && caseFourScreenRef.current) {
+        const settled = meadowProgress >= 0.999;
+        const screenReveal = flying
+          ? THREE.MathUtils.smoothstep(meadowProgress, 0.56, 0.73)
+          : meadowState.caseFourReveal;
+        caseFourRef.current.style.opacity = String(screenReveal);
+        caseFourRef.current.style.clipPath = flying && !settled && screenReveal > 0
+          ? walkScene.gateClip(camera, stageSize.width, stageSize.height) : "none";
+        caseFourRef.current.style.pointerEvents = settled ? "auto" : "none";
+        caseFourRef.current.inert = !settled;
+        caseFourRef.current.setAttribute("aria-hidden", String(!settled));
+        caseFourScreenRef.current.style.transform = flying && !settled && screenReveal > 0
+          ? walkScene.portalTransform(camera, stageSize.width, stageSize.height, "caseFour") : "none";
+        caseFourScreenRef.current.style.setProperty("--family-reveal", String(flying ? familyRevealRef.current.value : 1));
+        // The screen's own scrolling starts only after the scroll-driven story lands.
+        caseFourScreenRef.current.style.overflowY = familyRevealRef.current.value >= 0.999 ? "auto" : "hidden";
       }
       renderer.render(scene, camera);
     };
@@ -1874,7 +1989,7 @@ export function ButterflyExperience() {
 
         <SecondCaseStub veilRef={walkVeilRef} stubRef={caseTwoRef} />
         <ThirdCase sectionRef={caseThreeRef} />
-        <FourthCaseStub sectionRef={caseFourRef} />
+        <FourthCaseStub sectionRef={caseFourRef} screenRef={caseFourScreenRef} />
 
         <LoadingLine progress={loadingProgress} complete={loadingComplete} />
       </div>

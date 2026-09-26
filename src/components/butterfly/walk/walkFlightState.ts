@@ -327,7 +327,7 @@ export function getButterflyPassState(progress: number, options: WalkFlightOptio
 // away, the butterfly bursts out again and flies on low along a road of
 // points; soon after, grass grows up out of that road, a wave running on
 // ahead, until the whole road is one muted green grass road. Case 04 opens
-// over it.
+// beyond the stone gateway at the end of the flight.
 export type MeadowPassState = ButterflyShapeState & {
   cameraPosition: Vec3;
   cameraTarget: Vec3;
@@ -348,29 +348,37 @@ export type MeadowPassState = ButterflyShapeState & {
 export const MEADOW_NEAR_Z = -30;
 export const MEADOW_FAR_Z = -66;
 const MEADOW_X = CASE_THREE_SCREEN[0];
+// The grass strip bends right here; align the gate with that bend.
+export const MEADOW_GATE: Vec3 = [MEADOW_X + 0.55, 0, -59];
+export const CASE_FOUR_HEIGHT = 2.3;
+export const CASE_FOUR_SCREEN: Vec3 = [MEADOW_GATE[0], 1.7, -66];
+const CASE_FOUR_DISTANCE = CASE_FOUR_HEIGHT / 2 / Math.tan((21 * Math.PI) / 180);
 
 // Camera: holds while case 03 folds, drops low over the road and follows the
-// butterfly along it, then eases to a stop above the meadow.
-const MEADOW_TIMES = [0, 0.12, 0.24, 0.45, 0.7, 1];
+// butterfly along it, levels out between the columns and crosses the veil.
+const MEADOW_TIMES = [0, 0.12, 0.24, 0.45, 0.68, 0.84, 0.94, 1];
 const MEADOW_KNOTS: Vec3[] = [
   CASE_THREE_PORTAL,
   [MEADOW_X, 1.72, -29.6],
   [MEADOW_X, 1.5, -30.6],
   [MEADOW_X + 0.3, 1.35, -38],
-  [MEADOW_X - 0.2, 1.3, -46],
-  [MEADOW_X, 1.4, -52],
+  [MEADOW_X - 0.2, 1.3, -47],
+  [MEADOW_GATE[0] - 0.15, 1.65, -55],
+  [MEADOW_GATE[0], 1.7, -60.2],
+  [MEADOW_GATE[0], 1.7, CASE_FOUR_SCREEN[2] + CASE_FOUR_DISTANCE],
 ];
 
 // The butterfly bursts out of case 03, dips low over the road, weaves along it
-// and comes to hover ahead of the camera.
+// and leads the camera through the gateway.
 const MEADOW_FLIGHT: Flight = {
-  times: [0.16, 0.3, 0.5, 0.75, 1],
+  times: [0.16, 0.3, 0.5, 0.72, 0.86, 1],
   knots: [
     [MEADOW_X, LIGHT_Y, -31.9],
     [MEADOW_X + 0.4, 1.2, -36.5],
     [MEADOW_X - 0.4, 0.95, -44],
-    [MEADOW_X + 0.3, 1.0, -51],
-    [MEADOW_X, 1.0, -56],
+    [MEADOW_GATE[0] - 0.15, 1.25, -54],
+    [MEADOW_GATE[0], 1.7, -60.5],
+    [MEADOW_GATE[0], 1.7, -66],
   ],
 };
 
@@ -379,7 +387,7 @@ export function getMeadowPassState(progress: number, options: WalkFlightOptions)
   const screenDissolve = smooth(progress, 0.11, 0.15);
   const gather = smooth(progress, 0.13, 0.26);
   const roadReveal = smooth(progress, 0.1, 0.28);
-  const caseFourReveal = smooth(progress, 0.82, 0.96);
+  const caseFourReveal = smooth(progress, options.reducedMotion ? 0.82 : 0.94, 1);
   const flight = flightKinematics(progress, MEADOW_FLIGHT);
   // The grass wave starts as soon as the butterfly is out and runs on ahead
   // along the road, so the road turns green early in the flight.
@@ -387,7 +395,7 @@ export function getMeadowPassState(progress: number, options: WalkFlightOptions)
   const common = {
     collapse, screenDissolve, gather, roadReveal, caseFourReveal,
     land: 0,
-    vanish: 0,
+    vanish: smooth(progress, 0.82, 0.91),
     warmth: 1,
     life: 1,
     grassFront,
@@ -410,7 +418,11 @@ export function getMeadowPassState(progress: number, options: WalkFlightOptions)
     };
   }
   const knots = options.narrow
-    ? MEADOW_KNOTS.map(([x, y, z], i) => (i === 0 ? [x, y, z] : [MEADOW_X + (x - MEADOW_X) * 0.6, y, z + 0.6]) as Vec3)
+    ? MEADOW_KNOTS.map(([x, y, z], i) => {
+      const center = lerp(MEADOW_X, MEADOW_GATE[0], smooth(MEADOW_TIMES[i], 0.68, 0.94));
+      const offset = 0.6 * (1 - smooth(MEADOW_TIMES[i], 0.84, 1));
+      return (i === 0 ? [x, y, z] : [center + (x - center) * 0.6, y, z + offset]) as Vec3;
+    })
     : MEADOW_KNOTS;
   const cameraPosition = cameraOnPath(progress, knots, MEADOW_TIMES);
   // Look at case 03 while it folds, then chase the butterfly, aiming a little
@@ -422,6 +434,10 @@ export function getMeadowPassState(progress: number, options: WalkFlightOptions)
     lerp(flight.position[1], aim[1], 0.45) - 0.6,
     lerp(flight.position[2], aim[2], 0.45),
   ];
+  const throughGate = smooth(progress, 0.62, 0.84);
   const cameraTarget = [0, 1, 2].map((axis) => lerp(screen[axis], chase[axis], follow)) as Vec3;
-  return { ...common, active: true, cameraPosition, cameraTarget, cameraRoll: flight.bank * 0.2 * follow };
+  cameraTarget[0] = lerp(cameraTarget[0], MEADOW_GATE[0], throughGate);
+  cameraTarget[1] = lerp(cameraTarget[1], 1.7, throughGate);
+  cameraTarget[2] = lerp(cameraTarget[2], cameraPosition[2] - 8, throughGate);
+  return { ...common, active: true, cameraPosition, cameraTarget, cameraRoll: flight.bank * 0.2 * follow * (1 - throughGate) };
 }

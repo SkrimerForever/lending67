@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { createWingDustTrail } from "./WingDustTrail";
 import { PORTAL_HEIGHT, type ButterflyShapeState, type Vec3 } from "./walkFlightState";
 
 export type PassButterfly = {
@@ -26,8 +27,6 @@ const vertexShader = /* glsl */ `
   uniform vec3 uFrom;
   uniform vec3 uTo;
   uniform mat4 uButterfly;
-  uniform vec3 uHeading;
-  uniform float uSpeed;
   attribute vec2 aRect;
   attribute vec2 aWing;
   attribute float aSeed;
@@ -63,11 +62,6 @@ const vertexShader = /* glsl */ `
     );
     vec3 onButterfly = (uButterfly * vec4(local, 1.0)).xyz;
 
-    // At speed a few points fall behind the wings as a short glittering trail.
-    float trail = smoothstep(0.82, 1.0, aSeed);
-    onButterfly -= uHeading * trail * uSpeed * (0.4 + 1.6 * fract(aSeed * 37.0));
-    onButterfly.y -= trail * uSpeed * 0.12;
-
     vec3 point = mix(onFrom, onButterfly, gather);
     point = mix(point, onTo, land);
     // Streams arc slightly on the way, like the opening flight.
@@ -80,7 +74,6 @@ const vertexShader = /* glsl */ `
     gl_PointSize = mix(1.1, 2.2, aSeed) * uPixelRatio * clamp(5.0 / max(distanceToCamera, 0.3), 0.5, 3.0);
     float shimmer = 0.85 + 0.15 * sin(uTime * 1.9 + aSeed * 50.0);
     vAlpha = uAppear * mix(0.55, 1.0, aSeed) * shimmer * smoothstep(0.15, 0.5, distanceToCamera);
-    // Only the butterfly carries warmth, strongest at the wing tips.
     vTip = smoothstep(0.35, 1.0, span / ${(WINGSPAN / 2).toFixed(3)}) * gather * (1.0 - land * 0.6);
   }
 `;
@@ -159,7 +152,6 @@ export function createPassButterfly(count: number, pixelRatio: number, from: Vec
     uTo: { value: new THREE.Vector3(...to) },
     uButterfly: { value: new THREE.Matrix4() },
     uHeading: { value: new THREE.Vector3(0, 0, -1) },
-    uSpeed: { value: 0 },
   };
   const material = new THREE.ShaderMaterial({
     uniforms,
@@ -172,13 +164,17 @@ export function createPassButterfly(count: number, pixelRatio: number, from: Vec
   const points = new THREE.Points(geometry, material);
   points.frustumCulled = false;
   points.visible = false;
+  const trail = createWingDustTrail(Math.max(180, Math.min(1600, Math.round(count * 0.18))));
+  points.add(trail.points);
 
   let disposed = false;
   const image = new Image();
   image.decoding = "async";
   image.onload = () => {
     if (disposed) return;
-    geometry.setAttribute("aWing", new THREE.BufferAttribute(sampleButterfly(image, count), 2));
+    const wings = sampleButterfly(image, count);
+    geometry.setAttribute("aWing", new THREE.BufferAttribute(wings, 2));
+    trail.setWings(wings);
   };
   image.src = BUTTERFLY_URL;
 
@@ -197,7 +193,11 @@ export function createPassButterfly(count: number, pixelRatio: number, from: Vec
       // it folds into glow before they burst into the butterfly.
       const appear = 1 - state.collapse[1];
       points.visible = state.active && appear > 0.01 && fade > 0;
-      if (!points.visible) return;
+      if (!points.visible) {
+        trail.reset();
+        lastTime = time;
+        return;
+      }
       uniforms.uTime.value = time;
       uniforms.uGather.value = state.gather;
       uniforms.uLand.value = state.land;
@@ -210,7 +210,6 @@ export function createPassButterfly(count: number, pixelRatio: number, from: Vec
       lastTime = time;
       wingPhase += delta * (6.5 + state.butterflySpeed * 9);
       uniforms.uFlap.value = 0.25 + Math.sin(wingPhase) * (0.7 + state.butterflySpeed * 0.15);
-      uniforms.uSpeed.value = state.butterflySpeed;
       uniforms.uHeading.value.set(...state.butterflyHeading);
       position.set(...state.butterflyPosition);
       position.y += Math.sin(time * 2.1) * 0.03;
@@ -219,6 +218,11 @@ export function createPassButterfly(count: number, pixelRatio: number, from: Vec
       // the body then rolls into the turn.
       uniforms.uButterfly.value.lookAt(position, target, up).setPosition(position);
       uniforms.uButterfly.value.multiply(bank.makeRotationZ(-state.butterflyBank + Math.sin(time * 1.3) * 0.08));
+      trail.update(
+        uniforms.uButterfly.value, uniforms.uFlap.value, time,
+        state.gather > 0.97 && state.land < 0.015 && state.butterflySpeed > 0,
+        fade,
+      );
     },
     setAspect(aspect) {
       uniforms.uPanelSize.value.x = PORTAL_HEIGHT * aspect;
@@ -231,6 +235,7 @@ export function createPassButterfly(count: number, pixelRatio: number, from: Vec
       image.onload = null;
       geometry.dispose();
       material.dispose();
+      trail.dispose();
     },
   };
 }

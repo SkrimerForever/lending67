@@ -111,6 +111,8 @@ export function createWalkerFigure(count: number, pixelRatio: number): WalkerFig
   return {
     points,
     update(_stride, time, reveal) {
+      points.visible = reveal > 0;
+      if (!points.visible) return;
       uniforms.uTime.value = time;
       uniforms.uReveal.value = reveal;
     },

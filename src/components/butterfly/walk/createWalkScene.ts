@@ -4,10 +4,14 @@ import { createWalkEnvironment } from "./walkEnvironment";
 import { createWalkerFigure } from "./WalkerFigure";
 import { quadToMatrix3d, type ScreenPoint } from "./portalTransform";
 import { createMeadow } from "./Meadow";
+import { createMeadowPortal } from "./MeadowPortal";
 import { createNightLife } from "./NightLife";
 import { createPassButterfly } from "./PassButterfly";
 import {
   CASE_THREE_SCREEN,
+  CASE_FOUR_SCREEN,
+  CASE_FOUR_HEIGHT,
+  MEADOW_GATE,
   LIGHT_Y,
   LIGHT_Z,
   PORTAL_HEIGHT,
@@ -35,9 +39,10 @@ export type WalkScene = {
     camera: THREE.PerspectiveCamera,
     width: number,
     height: number,
-    screen: "caseTwo" | "caseThree",
+    screen: "caseTwo" | "caseThree" | "caseFour",
     scale?: [number, number],
   ): string;
+  gateClip(camera: THREE.PerspectiveCamera, width: number, height: number): string;
   dispose(): void;
 };
 
@@ -58,6 +63,7 @@ export function createWalkScene(profile: PerformanceProfile, pixelRatio: number)
   // The same butterfly again, bursting out of case 03 and flying over the meadow.
   const meadowButterfly = createPassButterfly(profile.passButterflyParticleCount, pixelRatio, CASE_THREE_SCREEN, CASE_THREE_SCREEN);
   const meadowField = createMeadow(profile.meadowParticleCount, CASE_THREE_SCREEN[0], pixelRatio);
+  const meadowPortal = createMeadowPortal(profile.passButterflyParticleCount * 2, pixelRatio);
   const nightLife = createNightLife({
     milkyWay: profile.nightMilkyWayCount,
     forest: profile.nightForestCount,
@@ -66,14 +72,15 @@ export function createWalkScene(profile: PerformanceProfile, pixelRatio: number)
   }, pixelRatio);
   group.add(environment.group);
   group.add(walker.points);
-  group.add(butterfly.points, meadowButterfly.points, meadowField.points, nightLife.group);
+  group.add(butterfly.points, meadowButterfly.points, meadowField.points, nightLife.group, meadowPortal.group);
   const target = new THREE.Vector3();
   const eye = new THREE.Vector3();
   const corner = new THREE.Vector3();
   const portalCorners: Array<[number, number]> = [[-0.5, 0.5], [0.5, 0.5], [0.5, -0.5], [-0.5, -0.5]];
-  const screenCenters: Record<"caseTwo" | "caseThree", Vec3> = {
+  const screenCenters: Record<"caseTwo" | "caseThree" | "caseFour", Vec3> = {
     caseTwo: caseTwoCenter,
     caseThree: CASE_THREE_SCREEN,
+    caseFour: CASE_FOUR_SCREEN,
   };
 
   return {
@@ -112,6 +119,7 @@ export function createWalkScene(profile: PerformanceProfile, pixelRatio: number)
       if (meadow) {
         meadowButterfly.update(meadow, time);
         meadowField.update(meadow, time);
+        meadowPortal.update(meadow, time);
       }
       meadowButterfly.setAspect(camera.aspect);
       // The night comes alive with the butterfly and stays alive after it.
@@ -130,12 +138,14 @@ export function createWalkScene(profile: PerformanceProfile, pixelRatio: number)
       butterfly.setPixelRatio(value);
       meadowButterfly.setPixelRatio(value);
       meadowField.setPixelRatio(value);
+      meadowPortal.setPixelRatio(value);
       nightLife.setPixelRatio(value);
     },
     portalTransform(camera, width, height, screen, scale = [1, 1]) {
       camera.updateMatrixWorld();
-      const portalWidth = PORTAL_HEIGHT * camera.aspect * scale[0];
-      const portalHeight = PORTAL_HEIGHT * scale[1];
+      const heightInWorld = screen === "caseFour" ? CASE_FOUR_HEIGHT : PORTAL_HEIGHT;
+      const portalWidth = heightInWorld * camera.aspect * scale[0];
+      const portalHeight = heightInWorld * scale[1];
       const [cx, cy, cz] = screenCenters[screen];
       const quad = portalCorners.map(([u, v]): ScreenPoint => {
         corner.set(cx + u * portalWidth, cy + v * portalHeight, cz).add(WALK_ORIGIN).project(camera);
@@ -143,12 +153,23 @@ export function createWalkScene(profile: PerformanceProfile, pixelRatio: number)
       });
       return quadToMatrix3d(width, height, quad);
     },
+    gateClip(camera, width, height) {
+      if (camera.position.z - WALK_ORIGIN.z <= MEADOW_GATE[2] + 0.15) return "none";
+      camera.updateMatrixWorld();
+      const corners = portalCorners.map(([u, v]) => {
+        corner.set(MEADOW_GATE[0] + u * 2.55, 2.05 + v * 3.8, MEADOW_GATE[2])
+          .add(WALK_ORIGIN).project(camera);
+        return `${(corner.x + 1) * 0.5 * width}px ${(1 - corner.y) * 0.5 * height}px`;
+      });
+      return `polygon(${corners.join(",")})`;
+    },
     dispose() {
       walker.dispose();
       environment.dispose();
       butterfly.dispose();
       meadowButterfly.dispose();
       meadowField.dispose();
+      meadowPortal.dispose();
       nightLife.dispose();
     },
   };

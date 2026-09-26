@@ -307,6 +307,11 @@ export function createWalkEnvironment(
   return {
     group,
     update(state, time, screens, eye) {
+      groundPoints.visible = state.groundReveal > 0;
+      dustPoints.visible = state.dustReveal > 0;
+      starPoints.visible = state.dustReveal > 0;
+      for (const mesh of caseTwoLight.meshes) mesh.visible = screens.caseTwo > 0;
+      for (const mesh of caseThreeLight.meshes) mesh.visible = screens.caseThree > 0;
       groundUniforms.uReveal.value = state.groundReveal;
       groundUniforms.uTime.value = time;
       dustUniforms.uReveal.value = state.dustReveal;
