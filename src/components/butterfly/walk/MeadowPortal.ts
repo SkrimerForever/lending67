@@ -211,7 +211,9 @@ export function createMeadowPortal(particleCount: number, pixelRatio: number) {
         vec3 tint = mix(vec3(0.48, 0.76, 0.7), vec3(0.9, 0.67, 0.4), vUv.y);
         tint = mix(vec3(0.78), tint, uColor);
         float groundFade = smoothstep(0.015, 0.16, vUv.y);
-        float alpha = (edge * 0.28 + halo * 0.065 + inside * (0.012 + 0.008 * current)) * groundFade;
+        // The interface behind the opening now defines the portal; only a
+        // trace of atmosphere remains between the particle columns.
+        float alpha = (edge * 0.035 + halo * 0.025 + inside * (0.006 + 0.004 * current)) * groundFade;
         float built = smoothstep(0.0, 0.6, mix(-0.4, 5.2, uBuild) - (p.y + 2.05));
         gl_FragColor = vec4(tint, alpha * uReveal * built);
       }

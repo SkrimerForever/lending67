@@ -1,122 +1,95 @@
 "use client";
 
-import { useState, type RefObject } from "react";
+import { useState, useRef, useImperativeHandle, type RefObject } from "react";
+import { FamilyMap, type FamilyRoute, type MapPlayback } from "./habitus/FamilyMap";
+import { MortgagePanel, type MortgagePlayback } from "./habitus/MortgagePanel";
 
-type FourthCaseStubProps = {
-  sectionRef: RefObject<HTMLElement | null>;
-  screenRef: RefObject<HTMLDivElement | null>;
-};
+export type HabitusPlayback = { update(progress: number, reducedMotion: boolean): void };
+type FourthCaseStubProps = { sectionRef: RefObject<HTMLElement | null>; screenRef: RefObject<HTMLDivElement | null>; playbackRef: RefObject<HabitusPlayback | null> };
 
-const blocks = [
-  [42, 42, 98, 62], [164, 40, 62, 104], [256, 42, 110, 60], [396, 42, 72, 80],
-  [508, 44, 110, 68], [660, 42, 94, 90], [52, 174, 110, 64], [208, 192, 74, 58],
-  [326, 150, 114, 76], [514, 166, 88, 80], [656, 178, 88, 60], [54, 310, 94, 84],
-  [194, 316, 76, 62], [334, 300, 94, 60], [506, 320, 106, 72], [656, 310, 86, 104],
-  [46, 462, 116, 64], [206, 454, 94, 86], [348, 458, 110, 66], [526, 458, 84, 82],
-];
-
-function FamilyMap({ future }: { future: boolean }) {
-  return (
-    <div className="habitus-map" data-future={future}>
-      <svg viewBox="0 0 800 580" role="img" aria-label={future ? "Сценарий через год: маршруты семьи из дома в школу и на работу" : "Маршруты семьи из дома в детский сад и на работу"}>
-        <rect width="800" height="580" fill="#e9eef0" />
-        <path d="M610 -20 C565 115 701 165 659 285 S701 445 820 490 L850 -20Z" fill="#cedfe7" />
-        <path d="M0 405 Q104 381 164 420 L164 580 H0Z M300 0 H488 V117 H300Z M662 455 H800 V580 H662Z" fill="#d4dfd3" />
-        <g fill="none" stroke="#fbfcfa" strokeWidth="21" strokeLinejoin="round">
-          <path d="M0 272 H800 M182 0 V580 M480 0 V580 M0 430 H800 M0 128 H620" />
-          <path d="M310 128 V430 M630 0 V430" strokeWidth="13" />
-        </g>
-        <g fill="#d8dfe2" stroke="#c6cfd4" strokeWidth="1.2">
-          {blocks.map(([x, y, w, h], i) => <rect key={i} x={x} y={y} width={w} height={h} rx="3" />)}
-        </g>
-        <g fill="#bdcebf">
-          {Array.from({ length: 15 }, (_, i) => <circle key={i} cx={32 + (i % 5) * 27} cy={453 + Math.floor(i / 5) * 37} r={8 + i % 3} />)}
-        </g>
-        <g className="habitus-map__street" fill="#82929b" fontSize="10" letterSpacing="2">
-          <text x="34" y="264">ПАРКОВАЯ УЛИЦА</text><text x="346" y="423">ТИХИЙ ПРОСПЕКТ</text>
-          <text x="464" y="240" transform="rotate(-90 464 240)">САДОВАЯ УЛИЦА</text>
-        </g>
-        <rect x="336" y="301" width="91" height="59" rx="4" fill="#52736d" stroke="#fff" strokeWidth="3" />
-        <path d="M348 314 H414 M348 326 H414 M348 338 H414" stroke="#a9c2b8" strokeWidth="3" />
-        <g fill="none" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-          <path className="habitus-map__route habitus-map__route--work" pathLength="1" d="M382 330 V272 H480 V128 H551 V82" stroke="#577fa2" />
-          <path className="habitus-map__route habitus-map__route--now" pathLength="1" d="M382 330 V272 H182 V215 H110 V272 H182 V430 H565 V497" stroke="#aa8661" />
-          <path className="habitus-map__route habitus-map__route--future" pathLength="1" d="M382 330 V430 H250 V492 M250 492 V430 H565 V497" stroke="#aa8661" />
-        </g>
-        <g className="habitus-map__destinations" fontFamily="Arial, sans-serif">
-          <g transform="translate(338 365)"><rect width="90" height="31" rx="15" fill="#2e4e49" /><text x="45" y="20" textAnchor="middle" fill="white" fontSize="12">Ваш дом</text></g>
-          <g transform="translate(487 41)"><rect width="132" height="32" rx="5" fill="#fff" /><text x="66" y="21" textAnchor="middle" fill="#446581" fontSize="12">Офис · 08:48</text></g>
-          <g className="habitus-map__now" transform="translate(43 172)"><rect width="134" height="32" rx="5" fill="#fff" /><text x="67" y="21" textAnchor="middle" fill="#846544" fontSize="12">Садик · 07:55</text></g>
-          <g className="habitus-map__future" transform="translate(172 508)"><rect width="155" height="32" rx="5" fill="#fff" /><text x="77" y="21" textAnchor="middle" fill="#846544" fontSize="12">Школа · маткласс</text></g>
-          <g transform="translate(505 511)"><rect width="130" height="32" rx="5" fill="#fff" /><text x="65" y="21" textAnchor="middle" fill="#846544" fontSize="12">Работа · 08:35</text></g>
-          {[ [382,330], [551,82], [565,497] ].map(([x,y]) => <circle key={x} cx={x} cy={y} r="6" fill="#fff" stroke="#52736d" strokeWidth="3" />)}
-        </g>
-      </svg>
-      <div className="habitus-map__caption"><span>Маршруты вашей семьи</span><span>Схема района</span></div>
-      <div className="habitus-map__legend"><span><i />Пешком + транспорт</span><span><i />На машине</span></div>
-    </div>
-  );
-}
-
-function ApartmentDrawing() {
-  return <svg viewBox="0 0 320 200" aria-label="Схематичный фасад выбранного дома" role="img">
-    <rect width="320" height="200" fill="#dfe7e8" />
-    <path d="M0 174 H320 V200 H0Z" fill="#c8d6cf" />
-    <path d="M70 175 V43 H218 V175Z" fill="#eef0eb" />
-    <path d="M218 43 L261 64 V175 H218Z" fill="#b6c6c6" />
-    <path d="M70 43 L113 24 H261 L218 43Z" fill="#d1dad6" />
-    {Array.from({length: 20}, (_,i) => <rect key={i} x={84+i%5*26} y={58+Math.floor(i/5)*27} width="13" height="18" fill={i===12 ? "#c4a46d" : "#799396"} />)}
-    <path d="M125 175 V153 H162 V175" fill="#466467" />
-    <g fill="#789480"><circle cx="43" cy="142" r="25" /><circle cx="282" cy="152" r="22" /></g>
-    <g stroke="#62796b" strokeWidth="3"><path d="M43 148 V185 M282 157 V185" /></g>
+function FloorPlan() {
+  return <svg viewBox="0 0 320 244" role="img" aria-label="Пример планировки: кухня-гостиная, две спальни, санузел и лоджия">
+    <defs><pattern id="habitus-floor" width="12" height="12" patternUnits="userSpaceOnUse"><path d="M0 0h12v12" fill="none" stroke="#dce0d6" strokeWidth=".6" /></pattern></defs>
+    <path d="M39 25h242v175H39Z" fill="#f8f9f5" />
+    <path d="M43 29h110v115H43Z M177 29h100v77H177Z M177 113h100v83H177Z" fill="url(#habitus-floor)" />
+    <g fill="#e0e5d9" stroke="#bdc8b2" strokeWidth="1"><rect x="192" y="37" width="54" height="52" rx="2" /><rect x="196" y="41" width="20" height="12" rx="2" /><rect x="222" y="41" width="20" height="12" rx="2" /><rect x="220" y="127" width="45" height="59" rx="2" /><rect x="224" y="131" width="37" height="12" rx="2" /><rect x="55" y="86" width="21" height="50" rx="3" /><rect x="83" y="99" width="30" height="28" rx="6" /><rect x="53" y="37" width="80" height="17" /><circle cx="110" cy="73" r="14" /></g>
+    <g stroke="#687363" fill="none" strokeWidth="4"><path d="M39 25h242v175H181m-27 0H39V25M158 25v69m0 26v26H39M176 25v83h105M176 108v33m0 23v36M116 146v54" /></g>
+    <g stroke="#aeb8a7" fill="none" strokeWidth="1"><path d="M158 94a26 26 0 0 0-26 26h26M176 141a23 23 0 0 0-23 23h23M154 200a27 27 0 0 1 27-27v27" /><rect x="53" y="158" width="29" height="17" rx="7" /><rect x="91" y="154" width="16" height="30" rx="3" /></g>
+    <g stroke="#f8f9f5" strokeWidth="6"><path d="M68 25h61M203 25h53M281 139v41" /></g><g stroke="#aebaaa" strokeWidth="1.5"><path d="M68 25h61M203 25h53M281 139v41" /></g>
+    <path d="M199 201v23h82v-23" fill="none" stroke="#b7c2b0" strokeWidth="2" />
+    <g fill="#89947f" fontFamily="Arial, sans-serif" fontSize="9"><text x="92" y="133" textAnchor="middle">26,4</text><text x="252" y="98">16,2</text><text x="195" y="188">12,8</text><text x="71" y="193">5,6</text></g>
   </svg>;
 }
 
-export function FourthCaseStub({ sectionRef, screenRef }: FourthCaseStubProps) {
-  const [future, setFuture] = useState(false);
-  const [tab, setTab] = useState<"life" | "mortgage">("life");
-  const [saved, setSaved] = useState(false);
-  const monthlyRate = 0.14 / 12;
-  const payment = Math.round(8_800_000 * monthlyRate / (1 - Math.pow(1 + monthlyRate, -240)));
-  return (
-    <section ref={sectionRef} className="case-four-stub" aria-label="Кейс 04. Habitus — жильё под вашу жизнь" aria-hidden="true" inert>
-      <div ref={screenRef} className="habitus-screen">
-        <header className="habitus-topbar">
-          <a href="#habitus-home" className="habitus-brand" onClick={(event) => { event.preventDefault(); setTab("life"); }}>habitus<span>Место для вашей жизни</span></a>
-          <span className="habitus-demo">Кейс 04 / Демонстрационный сценарий</span>
-          <span className="habitus-profile">А + М<span>Семья из трёх человек</span></span>
-        </header>
-        <div className="habitus-content" id="habitus-home">
-          <div className="habitus-intro"><div><p>Подборка для вашей семьи / Квартира 03</p><h2>Здесь складывается ваш день.</h2></div><button className="habitus-save" aria-pressed={saved} onClick={() => setSaved(!saved)}>{saved ? "✓ В сравнении" : "+ В сравнение"}</button></div>
-          <article className="habitus-property">
-            <div className="habitus-property__visual"><ApartmentDrawing /><span>Вариант из подборки</span></div>
-            <div className="habitus-property__description"><span>Жилой квартал «Тихий парк»</span><h3>3-комнатная, 74 м²</h3><p>Кухня-гостиная и две спальни · 6 этаж из 12</p><div className="habitus-property__tags"><span>Двор без машин</span><span>Парк рядом</span><span>Место для детской</span></div></div>
-            <div className="habitus-property__price"><strong>12 800 000 ₽</strong><span>Все объекты и суммы — пример</span><button onClick={() => setTab("mortgage")}>Разобрать ипотеку ↗</button></div>
-          </article>
-          <div className="habitus-tabs" role="tablist" aria-label="Разбор квартиры">
-            <button id="habitus-life-tab" role="tab" aria-selected={tab === "life"} aria-controls="habitus-life" onClick={() => setTab("life")}>Жизнь в этом доме <span>01</span></button>
-            <button id="habitus-mortgage-tab" role="tab" aria-selected={tab === "mortgage"} aria-controls="habitus-mortgage" onClick={() => setTab("mortgage")}>Ипотека и льготы <span>02</span></button>
-            <span>Смотрим дальше квадратных метров</span>
-          </div>
-          <div id="habitus-life" role="tabpanel" aria-labelledby="habitus-life-tab" hidden={tab !== "life"} className="habitus-life">
-            <FamilyMap future={future} />
-            <aside className="habitus-routine">
-              <div className="habitus-period" aria-label="Период жизни"><button aria-pressed={!future} onClick={() => setFuture(false)}>Сейчас</button><button aria-pressed={future} onClick={() => setFuture(true)}>Через год</button></div>
-              <h3>{future ? "Дом тот же. Жизнь меняется." : "Обычный вторник."}</h3>
-              <p>{future ? "Учитываем школу заранее, чтобы снова не менять адрес." : "У каждого свой маршрут. Здесь они сходятся."}</p>
-              <div className="habitus-journey"><span className="habitus-person">А</span><div><strong>Алексей <small>без машины</small></strong><p>Дом → пешком → метро → офис</p><span>38 минут · к 09:00 успеваете</span></div></div>
-              <div className="habitus-journey habitus-journey--car"><span className="habitus-person">М</span><div><strong>Мария <small>на машине</small></strong><p>{future ? "Дом → школа → работа" : "Дом → детский сад → работа"}</p><span>{future ? "Новый маршрут · 32 минуты" : "Садик к 08:00 · работа в 08:35"}</span></div></div>
-              <div className="habitus-next"><span>{future ? "Следующий этап" : "С учётом будущего"}</span><strong>{future ? "Школа с математическим классом" : "Через год — в первый класс"}</strong><p>{future ? "12 минут пешком. Условия поступления и наличие мест нужно подтвердить." : "Рядом есть школа. Программу и условия поступления проверяем отдельно."}</p></div>
-              <p className="habitus-footnote">Время в пути иллюстративное. Это пример сценария, а не расчёт по реальным адресам.</p>
-            </aside>
-          </div>
-          <div id="habitus-mortgage" role="tabpanel" aria-labelledby="habitus-mortgage-tab" hidden={tab !== "mortgage"} className="habitus-mortgage">
-            <div className="habitus-finance"><p>Покупка без белых пятен</p><h3>Понятно, сколько.<br />Понятно, на каких условиях.</h3><div className="habitus-payment"><strong>{payment.toLocaleString("ru-RU")} ₽<small> / месяц</small></strong><span>Аннуитетный платёж в учебном примере</span></div><dl><div><dt>Первый взнос</dt><dd>4 000 000 ₽</dd></div><div><dt>Сумма кредита</dt><dd>8 800 000 ₽</dd></div><div><dt>Срок / условная ставка</dt><dd>20 лет / 14%</dd></div></dl><p className="habitus-footnote">Не предложение банка. Без страховки и дополнительных расходов. Ставка задана для демонстрации расчёта.</p></div>
-            <div className="habitus-conditions"><h3>Что нужно проверить</h3><p>Отделяем расчёт от права на льготу.</p><article><span>01</span><div><strong>Семейная программа</strong><p>Возраст детей, требования к объекту и действующие правила программы.</p><small>Нужны данные семьи и актуальные условия</small></div></article><article><span>02</span><div><strong>Условия выбранного банка</strong><p>Полная стоимость кредита, страховка и изменение ставки при отказе от услуг.</p><small>Нужен документ с условиями</small></div></article><article><span>03</span><div><strong>Льготы и первый взнос</strong><p>Возможность использовать сертификаты и сочетать доступные меры поддержки.</p><small>Нужно подтвердить право и совместимость</small></div></article><div className="habitus-condition-note">В демонстрации льготы не подтверждены. Решение появляется после проверки данных и документов.</div></div>
-          </div>
-          <footer className="habitus-footer"><span>Жильё под жизнь. Сейчас и на следующий её этап.</span><span>{saved ? "1 квартира в сравнении" : "Habitus / Сценарий семьи"}</span></footer>
+export function FourthCaseStub({ sectionRef, screenRef, playbackRef }: FourthCaseStubProps) {
+  const [phase, setPhase] = useState(0);
+  const phaseRef = useRef(0);
+  const mortgageRef = useRef<MortgagePlayback>(null);
+  const mapRef = useRef<MapPlayback>(null);
+  const future = phase >= 2;
+  const view = phase >= 3 ? "mortgage" : "life";
+  const route: FamilyRoute = phase === 0 ? "alex" : phase === 1 ? "maria" : "all";
+  const saved = phase >= 3;
+  useImperativeHandle(playbackRef, () => ({
+    update(progress, reducedMotion) {
+      const nextPhase = progress < 0.2 ? 0 : progress < 0.4 ? 1 : progress < 0.62 ? 2 : 3;
+      if (nextPhase !== phaseRef.current) {
+        phaseRef.current = nextPhase;
+        setPhase(nextPhase);
+      }
+      const ramp = (start: number, end: number) => {
+        const t = Math.min(1, Math.max(0, (progress - start) / (end - start)));
+        return t * t * (3 - 2 * t);
+      };
+      screenRef.current?.style.setProperty("--alex-reveal", String(ramp(0.025, 0.175)));
+      screenRef.current?.style.setProperty("--maria-reveal", String(ramp(0.225, 0.375)));
+      screenRef.current?.style.setProperty("--school-reveal", String(ramp(0.435, 0.575)));
+      const screen = screenRef.current;
+      const handoff = ramp(0.59, 0.665);
+      screen?.style.setProperty("--life-opacity", String(1 - ramp(0.59, 0.635)));
+      screen?.style.setProperty("--finance-opacity", String(ramp(0.625, 0.675)));
+      screen?.style.setProperty("--life-shift", `${reducedMotion ? 0 : -32 * handoff}px`);
+      screen?.style.setProperty("--finance-shift", `${reducedMotion ? 0 : 36 * (1 - handoff)}px`);
+      screen?.style.setProperty("--chapter-progress", String(progress));
+      screen?.style.setProperty("--summary-alex", String(ramp(0.10, 0.18)));
+      screen?.style.setProperty("--summary-maria", String(ramp(0.28, 0.38)));
+      // Text swaps at the trough of this fade, never in a fully visible frame.
+      screen?.style.setProperty("--period-copy", String(1 - ramp(0.38, 0.4) + ramp(0.4, 0.43)));
+      mapRef.current?.update(progress, reducedMotion);
+      mortgageRef.current?.update(progress, reducedMotion);
+    },
+  }), [screenRef]);
+  return <section ref={sectionRef} className="case-four-stub" aria-label="Кейс 04 — Habitus" aria-hidden="true" inert>
+    <div ref={screenRef} className="habitus-screen">
+      <header className="habitus-header">
+        <span className="habitus-wordmark"><svg width="23" height="27" viewBox="0 0 23 27" fill="none" aria-hidden="true"><path d="M2 25V8L11.5 2 21 8v17M8 25V13h7v12" stroke="currentColor" strokeWidth="1.5" /></svg>habitus<span>Место для жизни</span></span>
+        <span className="habitus-case-label">04 / Недвижимость</span>
+        <div className="habitus-household"><span className="habitus-avatar">АМ</span><span>Семья Морозовых<small>Двое взрослых и ребёнок</small></span></div>
+      </header>
+      <div className="habitus-workspace">
+        <aside className="habitus-listing">
+          <div className="habitus-listing-heading"><span>В вашей подборке</span><button className="habitus-bookmark" aria-label={saved ? "Убрать квартиру из сохранённых" : "Сохранить квартиру"} aria-pressed={saved}><svg width="18" height="21" viewBox="0 0 18 21" aria-hidden="true"><path d="M3 2h12v17l-6-4-6 4Z" fill={saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5" /></svg></button></div>
+          <h2>Место для<br />следующей главы.</h2><p className="habitus-listing-subtitle">Квартира, которая подходит<br />не только по метражу.</p>
+          <div className="habitus-floorplan"><FloorPlan /><span>Пример планировки</span></div>
+          <div className="habitus-property-heading"><h3>3-комнатная, 74 м²</h3><span>ЖК «Тихий парк»</span></div>
+          <dl className="habitus-specs"><div><dt>Этаж</dt><dd>6 из 12</dd></div><div><dt>Комнаты</dt><dd>2 спальни</dd></div><div><dt>Двор</dt><dd>Без машин</dd></div></dl>
+          <div className="habitus-price">12 800 000 <span>₽</span></div>
+          <button className="habitus-primary"><span>{view === "mortgage" ? "Вернуться к маршрутам" : "Посмотреть ипотеку"}</span><svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3 9h12m-5-5 5 5-5 5" stroke="currentColor" strokeWidth="1.5" /></svg></button>
+          <p className="habitus-listing-note" aria-live="polite">{saved ? "Квартира сохранена в этой демонстрации." : "Дом, маршруты и суммы — демонстрационный пример."}</p>
+        </aside>
+        <div className="habitus-main">
+          <nav className="habitus-navigation" aria-label="Раздел карточки"><div className="habitus-view-tabs"><button aria-pressed={view === "life"}>Жизнь здесь</button><button aria-pressed={view === "mortgage"}>Ипотека и льготы</button></div><span className="habitus-demo-label">Демонстрация продукта</span></nav>
+          <div className="habitus-scenes"><div className="habitus-life-view" aria-hidden={view !== "life"}>
+            <div className="habitus-map-heading"><div><span>Ваш повседневный маршрут</span><h3>{future ? "Новый учебный год. Тот же дом." : "У каждого свой день. Дом — один."}</h3></div><div className="habitus-period"><button aria-pressed={!future}>Сейчас</button><button aria-pressed={future}>Через год</button></div></div>
+            <div className="habitus-map-stage"><FamilyMap future={future} route={route} playbackRef={mapRef} />
+              <div className="habitus-map-context"><span className="habitus-status-dot" /><span>{future ? "Школа с математическим классом" : "Садик по дороге на работу"}<small>{future ? "Условия поступления требуют проверки" : "Отвозите ребёнка к 08:00"}</small></span></div>
+              <div className="habitus-route-picker" aria-label="Показать маршрут"><button aria-pressed={route === "all"}>Все</button><button aria-pressed={route === "alex"}>Алексей</button><button aria-pressed={route === "maria"}>Мария</button></div>
+            </div>
+            <div className="habitus-route-summary"><button className={route === "alex" ? "is-selected" : ""} aria-pressed={route === "alex"}><span className="habitus-route-number">01</span><span><strong>Алексей <small>Пешком и метро</small></strong><span>Дом — офис</span></span><b>38 <small>мин</small></b></button><button className={route === "maria" ? "is-selected" : ""} aria-pressed={route === "maria"}><span className="habitus-route-number">02</span><span><strong>Мария <small>На машине</small></strong><span>{future ? "Дом — школа — работа" : "Дом — садик — работа"}</span></span><b>{future ? "32" : "41"} <small>мин</small></b></button></div>
+          </div><div className="habitus-mortgage-playback" aria-hidden={view !== "mortgage"}><MortgagePanel playbackRef={mortgageRef} /></div></div>
+          <div className="habitus-story-progress" aria-hidden="true"><span /></div><footer className="habitus-bottomline"><span>Сначала ваша жизнь. Потом адрес.</span><span>Habitus / 04</span></footer>
         </div>
       </div>
-    </section>
-  );
+    </div>
+  </section>;
 }

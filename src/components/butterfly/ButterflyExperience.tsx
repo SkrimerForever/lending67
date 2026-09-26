@@ -10,7 +10,7 @@ import { HeroStory } from "./HeroStory";
 import { LoadingLine } from "./LoadingLine";
 import { getPerformanceProfile, type PerformanceProfile } from "./performance-profile";
 import { SecondCaseStub } from "./SecondCaseStub";
-import { FourthCaseStub } from "./FourthCaseStub";
+import { FourthCaseStub, type HabitusPlayback } from "./FourthCaseStub";
 import { ThirdCase } from "./ThirdCase";
 import { createWalkScene } from "./walk/createWalkScene";
 import { getButterflyPassState, getMeadowPassState, getWalkFlightState } from "./walk/walkFlightState";
@@ -428,6 +428,7 @@ export function ButterflyExperience() {
   const caseFourRef = useRef<HTMLElement>(null);
   const caseFourScreenRef = useRef<HTMLDivElement>(null);
   const familyRevealRef = useRef({ value: 0 });
+  const habitusPlaybackRef = useRef<HabitusPlayback>(null);
   const nightSkyRef = useRef<HTMLDivElement>(null);
   const uniformsRef = useRef<Uniforms | null>(null);
   const progressRef = useRef({ value: 0 });
@@ -678,7 +679,7 @@ export function ButterflyExperience() {
       scrollTrigger: {
         trigger: shell,
         start: () => `top+=${storyScrollDistance() + window.innerHeight * 19.8} top`,
-        end: () => `top+=${storyScrollDistance() + window.innerHeight * 21.3} top`,
+        end: () => `top+=${storyScrollDistance() + window.innerHeight * 27.8} top`,
         scrub: 0.6,
         invalidateOnRefresh: true,
       },
@@ -1915,14 +1916,31 @@ export function ButterflyExperience() {
         caseFourRef.current.style.opacity = String(screenReveal);
         caseFourRef.current.style.clipPath = flying && !settled && screenReveal > 0
           ? walkScene.gateClip(camera, stageSize.width, stageSize.height) : "none";
-        caseFourRef.current.style.pointerEvents = settled ? "auto" : "none";
-        caseFourRef.current.inert = !settled;
+        caseFourRef.current.style.pointerEvents = "none";
+        caseFourRef.current.inert = true;
         caseFourRef.current.setAttribute("aria-hidden", String(!settled));
         caseFourScreenRef.current.style.transform = flying && !settled && screenReveal > 0
           ? walkScene.portalTransform(camera, stageSize.width, stageSize.height, "caseFour") : "none";
-        caseFourScreenRef.current.style.setProperty("--family-reveal", String(flying ? familyRevealRef.current.value : 1));
-        // The screen's own scrolling starts only after the scroll-driven story lands.
-        caseFourScreenRef.current.style.overflowY = familyRevealRef.current.value >= 0.999 ? "auto" : "hidden";
+        const story = familyRevealRef.current.value;
+        habitusPlaybackRef.current?.update(story, !flying);
+        const screen = caseFourScreenRef.current;
+        screen.style.setProperty("--family-reveal", String(Math.min(1, story / 0.16)));
+        screen.style.overflowY = "hidden";
+        // All vertical framing belongs to the page scroll, including short screens.
+        if (!settled) screen.scrollTop = 0;
+        else {
+          const top = screen.getBoundingClientRect().top;
+          const scrollTop = screen.scrollTop;
+          const frameTarget = (selector: string) => {
+            const element = screen.querySelector<HTMLElement>(selector);
+            return element ? Math.max(0, element.getBoundingClientRect().bottom - top + scrollTop - screen.clientHeight + 32) : 0;
+          };
+          const lifeTarget = frameTarget(".habitus-route-summary") * THREE.MathUtils.smoothstep(story, 0.13, 0.20);
+          const loanTarget = frameTarget(".habitus-loan-total");
+          const checksTarget = frameTarget(".habitus-checks");
+          const financeTarget = THREE.MathUtils.lerp(loanTarget, checksTarget, THREE.MathUtils.smoothstep(story, 0.84, 0.89));
+          screen.scrollTop = THREE.MathUtils.lerp(lifeTarget, financeTarget, THREE.MathUtils.smoothstep(story, 0.59, 0.68));
+        }
       }
       renderer.render(scene, camera);
     };
@@ -1989,7 +2007,7 @@ export function ButterflyExperience() {
 
         <SecondCaseStub veilRef={walkVeilRef} stubRef={caseTwoRef} />
         <ThirdCase sectionRef={caseThreeRef} />
-        <FourthCaseStub sectionRef={caseFourRef} screenRef={caseFourScreenRef} />
+        <FourthCaseStub sectionRef={caseFourRef} screenRef={caseFourScreenRef} playbackRef={habitusPlaybackRef} />
 
         <LoadingLine progress={loadingProgress} complete={loadingComplete} />
       </div>
